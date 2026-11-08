@@ -944,12 +944,18 @@
     // Si la página se abre desde el enlace de Apps Script, todo se guarda en la hoja
     // y se comparte entre usuarios. Si se abre como archivo suelto, usa el navegador (modo local).
     // =====================================================================
+    // Si la página NO la sirve Apps Script (p. ej. GitHub Pages), pega aquí la URL de la aplicación web
+    // (termina en /exec). Si se sirve desde Apps Script, déjalo vacío: usa la conexión interna.
+    const URL_APPS_SCRIPT = '';
+
+    const EN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
     const Nube = {
-      activa: typeof google !== 'undefined' && !!(google.script && google.script.run),
+      activa: EN_APPS_SCRIPT || URL_APPS_SCRIPT !== '',
       offsetMs: 0,   // diferencia entre el reloj del servidor y el de este equipo
       pendientes: 0, // escrituras en camino
       version: 0,    // sube con cada escritura local (para descartar lecturas que quedaron viejas)
       llamar(accion, datos) {
+        if (!EN_APPS_SCRIPT) return Nube.llamarPorUrl(accion, datos);
         return new Promise((resolve, reject) => {
           google.script.run
             .withSuccessHandler(txt => {
@@ -960,6 +966,31 @@
             .withFailureHandler(err => reject(new Error(err && err.message ? err.message : String(err))))
             .api(accion, JSON.stringify(datos || {}));
         });
+      },
+      // Conexión por URL (página alojada fuera de Apps Script). Se envía como texto plano
+      // para evitar la verificación previa (preflight) de CORS, que Apps Script no admite.
+      async llamarPorUrl(accion, datos) {
+        const ctl = new AbortController();
+        const limite = setTimeout(() => ctl.abort(), 30000);
+        try {
+          const resp = await fetch(URL_APPS_SCRIPT, {
+            method: 'POST',
+            body: JSON.stringify({ accion, carga: datos || {} }),
+            signal: ctl.signal
+          });
+          const txt = await resp.text();
+          let r;
+          try { r = JSON.parse(txt); } catch (e) {
+            throw new Error('Respuesta inválida: revisa que la implementación tenga acceso "Cualquier persona" y que la URL termine en /exec');
+          }
+          if (!r.ok) throw new Error(r.error);
+          return r.data;
+        } catch (err) {
+          if (err.name === 'AbortError') throw new Error('El servidor tardó demasiado en responder');
+          throw err;
+        } finally {
+          clearTimeout(limite);
+        }
       },
       // Escritura: pausa la lectura periódica mientras viaja y refresca al terminar
       escribir(accion, datos) {
