@@ -462,7 +462,7 @@
         <!-- Cambios de diseño en curso (uno por tarjeta) -->
         <div id="diseno-cambios-activos" class="mt-4 space-y-3"></div>
 
-        <h3 class="text-sm font-bold text-white mt-4 mb-2">Registro de Cambios de Diseño</h3>
+        <h3 class="text-sm font-bold text-white mt-4 mb-2">Registro de Cambios de Diseño <span class="text-xs font-normal text-slate-400 ml-2">últimos 7 días</span></h3>
         <div class="overflow-x-auto custom-scrollbar">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -545,6 +545,7 @@
               <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider sticky top-0 border-b border-slate-700">
                 <th class="p-3 w-48">Área</th>
                 <th class="p-3">Equipo / Estación</th>
+                <th class="p-3 text-center w-44">Liberado por calidad</th>
                 <th class="p-3 text-center w-20">Acciones</th>
               </tr>
             </thead>
@@ -824,6 +825,14 @@
           <input type="text" id="modal-input-equipo" required placeholder="Ej. BM18" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
         </div>
 
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Liberado por calidad:</label>
+          <select id="modal-input-calidad" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            <option value="aplica">Aplica (lleva check de calidad)</option>
+            <option value="na">N/A (llega al 100% solo con Conversión)</option>
+          </select>
+        </div>
+
         <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
           <button type="button" onclick="closeAddTaskModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
           <button type="submit" class="px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold rounded-lg" id="modal-equipo-submit">Guardar Equipo</button>
@@ -976,13 +985,7 @@
           <label class="block text-xs font-semibold text-slate-300 mb-1">Nombre del Área:</label>
           <input type="text" id="modal-area-nombre" required placeholder="Ej. Laboratorio" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
         </div>
-        <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-700 bg-slate-900/60 cursor-pointer">
-          <input type="checkbox" id="modal-area-sin-calidad" class="mt-0.5 w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
-          <span class="text-xs text-slate-300">
-            <span class="font-semibold text-white">No aplica "Liberado por calidad" (N/A)</span><br>
-            <span class="text-slate-400">Sus equipos solo llevan el check de Conversión y llegan al 100% con él.</span>
-          </span>
-        </label>
+
         <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
           <button type="button" onclick="closeAreaModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
           <button type="submit" class="px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold rounded-lg">Guardar Área</button>
@@ -1144,13 +1147,12 @@
         return true;
       };
 
-      // Matriz (áreas, equipos, actividades de C/Diseño y opción N/A de calidad)
+      // Matriz (áreas, equipos con su opción de calidad y actividades de C/Diseño)
       if (est.matriz) {
         if (cambio('matriz', est.matriz)) {
           const m = est.matriz;
-          if (Array.isArray(m.areas) && Array.isArray(m.equipos)) { areasLista = m.areas; matrizSMED = m.equipos; }
+          if (Array.isArray(m.areas) && Array.isArray(m.equipos)) { migrarSinCalidadPorArea(m); areasLista = m.areas; matrizSMED = m.equipos; }
           if (Array.isArray(m.actividades)) actividadesDiseno = m.actividades;
-          if (Array.isArray(m.sinCalidad)) areasSinCalidad = m.sinCalidad;
           refrescarMatrizUI();
         }
       } else if (!matrizSembrada) {
@@ -1201,9 +1203,15 @@
 
     // --- 1B. MATRIZ: LISTA DE EQUIPOS POR ÁREA (sin tareas ni cotas) ---
     let areasLista = Object.keys(areasEquipos); // áreas (editables desde la Matriz)
-    let areasSinCalidad = ['Transportes'];      // áreas donde "Liberado por calidad" es N/A (editable en cada área)
-    let matrizSMED = Object.entries(areasEquipos).flatMap(([area, equipos]) => equipos.map(equipo => ({ area, equipo })))
+    // "sinCalidad": true = el equipo no lleva "Liberado por calidad" (N/A) y llega al 100% solo con Conversión
+    let matrizSMED = Object.entries(areasEquipos).flatMap(([area, equipos]) => equipos.map(equipo => ({ area, equipo, sinCalidad: area === 'Transportes' })))
       .map((item, i) => ({ id: i + 1, ...item }));
+
+    // Matrices guardadas antes tenían la opción por área: cada equipo hereda la regla de su área
+    function migrarSinCalidadPorArea(m) {
+      const porArea = Array.isArray(m.sinCalidad) ? m.sinCalidad : [];
+      m.equipos.forEach(e => { if (e.sinCalidad === undefined) e.sinCalidad = porArea.includes(e.area); });
+    }
 
     // Opciones de formato dinámicas según Tipo de Cambio
     const opcionesFormatos = {
@@ -1245,7 +1253,7 @@
     }
     // Matriz (áreas, equipos y actividades de C/Diseño) también se conserva en el navegador
     function guardarMatriz() {
-      const valor = { areas: areasLista, equipos: matrizSMED, actividades: actividadesDiseno, sinCalidad: areasSinCalidad };
+      const valor = { areas: areasLista, equipos: matrizSMED, actividades: actividadesDiseno };
       if (Nube.activa) { Nube.escribir('setMatriz', { value: valor }); return; }
       try {
         localStorage.setItem('smed_matriz', JSON.stringify(valor));
@@ -1254,9 +1262,8 @@
     function cargarMatriz() {
       try {
         const m = JSON.parse(localStorage.getItem('smed_matriz'));
-        if (m && Array.isArray(m.areas) && Array.isArray(m.equipos)) { areasLista = m.areas; matrizSMED = m.equipos; }
+        if (m && Array.isArray(m.areas) && Array.isArray(m.equipos)) { migrarSinCalidadPorArea(m); areasLista = m.areas; matrizSMED = m.equipos; }
         if (m && Array.isArray(m.actividades)) actividadesDiseno = m.actividades;
-        if (m && Array.isArray(m.sinCalidad)) areasSinCalidad = m.sinCalidad;
       } catch (e) { /* almacenamiento no disponible o datos inválidos */ }
     }
     function cargarRegistros() {
@@ -1348,6 +1355,7 @@
         }
       });
       if (tabId === 'metrics-dashboard') renderIndicadores();
+      if (tabId === 'smed-diseno') renderRegistroDiseno(); // actualiza la ventana de 7 días
     }
 
     // --- 4. LÓGICA DE FORMULARIO DINÁMICO SMED ---
@@ -1449,13 +1457,13 @@
 
     // --- 5. RENDERIZADO Y CÁLCULOS DEL CHECKLIST ---
     // Estatus de un equipo: 0% / 50% / 100% (100% = Conversión + Liberado por calidad)
-    // En estas áreas no aplica "Liberado por calidad" (se muestra N/A) y basta Conversión para el 100%
-    function sinLiberacionCalidad(area) {
-      return areasSinCalidad.includes(area);
+    // En los equipos marcados como N/A no aplica "Liberado por calidad" y basta Conversión para el 100%
+    function sinLiberacionCalidad(equipo) {
+      return !!(equipo && equipo.sinCalidad);
     }
 
     function porcentajeEquipo(e) {
-      if (sinLiberacionCalidad(e.area)) return e.conversion ? 100 : 0;
+      if (sinLiberacionCalidad(e)) return e.conversion ? 100 : 0;
       return (e.conversion ? 50 : 0) + (e.calidad ? 50 : 0);
     }
 
@@ -1502,7 +1510,7 @@
                 class="w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
             </td>
             <td class="p-3 text-center">
-              ${sinLiberacionCalidad(e.area)
+              ${sinLiberacionCalidad(e)
                 ? '<span class="text-xs font-bold text-slate-500">N/A</span>'
                 : `<input type="checkbox" ${e.calidad ? 'checked' : ''} onchange="toggleCheckEquipo(${e.id}, 'calidad')"
                 class="w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">`}
@@ -1667,7 +1675,7 @@
         enMeta: diff >= 0,
         textoDif: textoDif,
         // Foto del checklist al finalizar (para imprimir el resultado más adelante)
-        detalle: { equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e.area) })) }
+        detalle: { equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e) })) }
       };
       registroConversion.push(registro);
       if (Nube.activa) Nube.escribir('finalizeConversion', { record: registro }); // guarda el resultado y limpia la conversión en curso
@@ -2067,11 +2075,18 @@
     function renderRegistroDiseno() {
       const tbody = document.getElementById('diseno-registro-body');
       tbody.innerHTML = '';
-      if (registroDiseno.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-500 italic">Aún no hay cambios de diseño registrados.</td></tr>';
+      // Solo los últimos 7 días (hoy y los 6 días anteriores)
+      const limite = new Date(ahora());
+      limite.setDate(limite.getDate() - 6);
+      const desde = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`;
+      const recientes = registroDiseno.filter(r => String(r.fecha) >= desde);
+
+      if (recientes.length === 0) {
+        const msg = registroDiseno.length === 0 ? 'Aún no hay cambios de diseño registrados.' : 'No hay cambios de diseño en los últimos 7 días.';
+        tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-500 italic">${msg}</td></tr>`;
         return;
       }
-      registroDiseno.forEach(r => {
+      recientes.forEach(r => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-800/50 transition';
         tr.innerHTML = `
@@ -2191,7 +2206,6 @@
         chip.innerHTML = `
           <span class="text-xs font-semibold text-brand-lightBlue">${area}</span>
           <span class="text-[11px] text-slate-500">${n} equipo${n === 1 ? '' : 's'}</span>
-          ${sinLiberacionCalidad(area) ? '<span class="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5" title="Liberado por calidad: N/A">Calidad N/A</span>' : ''}
           <button data-act="edit" class="text-amber-400 hover:text-amber-300 p-1 transition" title="Editar Área"><i class="fa-solid fa-pen text-[11px]"></i></button>
           <button data-act="del" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar Área"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
         `;
@@ -2209,6 +2223,12 @@
         tr.innerHTML = `
           <td class="p-3 font-semibold text-brand-lightBlue text-xs">${item.area}</td>
           <td class="p-3 font-medium text-slate-200">${item.equipo}</td>
+          <td class="p-3 text-center">
+            <select onchange="cambiarCalidadEquipo(${item.id}, this.value)" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-brand-blue">
+              <option value="aplica" ${item.sinCalidad ? '' : 'selected'}>Aplica (con check)</option>
+              <option value="na" ${item.sinCalidad ? 'selected' : ''}>N/A</option>
+            </select>
+          </td>
           <td class="p-3 text-center whitespace-nowrap">
             <button onclick="openEditEquipoModal(${item.id})" class="text-amber-400 hover:text-amber-300 p-1 mr-1 transition" title="Editar Equipo">
               <i class="fa-solid fa-pen"></i>
@@ -2228,6 +2248,7 @@
       document.getElementById('modal-equipo-title').innerText = 'Agregar Equipo';
       document.getElementById('modal-equipo-submit').innerText = 'Guardar Equipo';
       document.getElementById('modal-input-equipo').value = '';
+      document.getElementById('modal-input-calidad').value = 'aplica';
       document.getElementById('modal-add-task').classList.remove('hidden');
     }
 
@@ -2239,7 +2260,18 @@
       document.getElementById('modal-equipo-submit').innerText = 'Guardar Cambios';
       document.getElementById('modal-input-area').value = item.area;
       document.getElementById('modal-input-equipo').value = item.equipo;
+      document.getElementById('modal-input-calidad').value = item.sinCalidad ? 'na' : 'aplica';
       document.getElementById('modal-add-task').classList.remove('hidden');
+    }
+
+    // Cambio rápido desde la tabla: Aplica (con check de calidad) o N/A
+    function cambiarCalidadEquipo(id, valor) {
+      const item = matrizSMED.find(m => m.id === id);
+      if (!item) return;
+      item.sinCalidad = valor === 'na';
+      guardarMatriz();
+      renderMatrizEditor();
+      ejecutarGeneracionChecklist(true);
     }
 
     function closeAddTaskModal() {
@@ -2250,6 +2282,7 @@
       e.preventDefault();
       const area = document.getElementById('modal-input-area').value;
       const equipo = document.getElementById('modal-input-equipo').value.trim();
+      const sinCalidad = document.getElementById('modal-input-calidad').value === 'na';
 
       if (matrizSMED.some(m => m.id !== equipoEditandoId && m.area === area && m.equipo.toLowerCase() === equipo.toLowerCase())) {
         alert('⚠️ Ese equipo ya existe en el área seleccionada.');
@@ -2260,8 +2293,9 @@
         const item = matrizSMED.find(m => m.id === equipoEditandoId);
         item.area = area;
         item.equipo = equipo;
+        item.sinCalidad = sinCalidad;
       } else {
-        matrizSMED.push({ id: siguienteId(matrizSMED), area, equipo });
+        matrizSMED.push({ id: siguienteId(matrizSMED), area, equipo, sinCalidad });
       }
       guardarMatriz();
       renderMatrizEditor();
@@ -2284,7 +2318,6 @@
       areaEditando = area;
       document.getElementById('modal-area-title').innerText = area ? 'Editar Área' : 'Agregar Área';
       document.getElementById('modal-area-nombre').value = area || '';
-      document.getElementById('modal-area-sin-calidad').checked = area !== null && areasSinCalidad.includes(area);
       document.getElementById('modal-area').classList.remove('hidden');
     }
 
@@ -2306,11 +2339,9 @@
         const idx = areasLista.indexOf(areaEditando);
         areasLista[idx] = nombre;
         matrizSMED.forEach(m => { if (m.area === areaEditando) m.area = nombre; });
-        areasSinCalidad = areasSinCalidad.filter(a => a !== areaEditando); // la opción viaja con el área renombrada
       } else {
         areasLista.push(nombre);
       }
-      if (document.getElementById('modal-area-sin-calidad').checked) areasSinCalidad.push(nombre);
 
       guardarMatriz();
       poblarAreas();
@@ -2327,7 +2358,6 @@
       }
       if (confirm(`¿Eliminar el área "${area}"?`)) {
         areasLista = areasLista.filter(a => a !== area);
-        areasSinCalidad = areasSinCalidad.filter(a => a !== area);
         guardarMatriz();
         poblarAreas();
         renderMatrizEditor();
