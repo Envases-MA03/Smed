@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1b365d">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Sistema SMED & Mejora Continua - Planta DWI Latas de Aluminio</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -50,6 +52,19 @@
       background: #475569;
       border-radius: 4px;
     }
+    /* Alto real en celulares (la barra del navegador no tapa contenido) */
+    @supports (height: 100dvh) {
+      body.h-screen { height: 100dvh; }
+    }
+    /* Ajustes para pantallas pequeñas */
+    @media (max-width: 767px) {
+      /* 16px evita que iPhone haga zoom al tocar un campo */
+      input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px !important; }
+      /* Checks y botones de tabla más fáciles de tocar */
+      input[type=checkbox] { width: 1.35rem; height: 1.35rem; }
+      table button { padding: 0.55rem !important; }
+      th, td { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+    }
     @media print {
       .no-print { display: none !important; }
       body { background-color: white !important; color: black !important; }
@@ -68,41 +83,41 @@
   </div>
 
   <!-- TOP HEADER / NAVBAR -->
-  <header class="bg-brand-navy border-b border-brand-border px-6 py-3 flex items-center justify-between no-print shrink-0">
+  <header class="bg-brand-navy border-b border-brand-border px-3 sm:px-6 py-2 sm:py-3 flex flex-wrap items-center justify-between gap-y-2 no-print shrink-0">
     <div class="flex items-center space-x-3">
       <div class="bg-brand-blue p-2 rounded-lg text-white">
         <i class="fa-solid font-bold fa-industry text-xl"></i>
       </div>
       <div>
         <h1 class="font-bold text-lg text-white leading-tight">Planta Mérida</h1>
-        <p class="text-xs text-brand-lightBlue">Sistema de Gestión SMED & Mejora Continua</p>
+        <p class="hidden sm:block text-xs text-brand-lightBlue">Sistema de Gestión SMED & Mejora Continua</p>
       </div>
     </div>
 
     <!-- Pestañas de Navegación principales -->
-    <nav class="flex space-x-2">
-      <button onclick="switchTab('smed-execution')" id="tab-btn-smed-execution" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors bg-brand-blue text-white">
+    <nav class="order-last lg:order-none w-full lg:w-auto flex space-x-2 overflow-x-auto custom-scrollbar pb-1 lg:pb-0">
+      <button onclick="switchTab('smed-execution')" id="tab-btn-smed-execution" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-colors whitespace-nowrap shrink-0 bg-brand-blue text-white">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg>
         <span>SMED CONVERSION</span>
       </button>
-      <button onclick="switchTab('smed-diseno')" id="tab-btn-smed-diseno" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors text-slate-300 hover:bg-slate-800">
+      <button onclick="switchTab('smed-diseno')" id="tab-btn-smed-diseno" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-colors whitespace-nowrap shrink-0 text-slate-300 hover:bg-slate-800">
         <svg class="w-5 h-4" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg>
         <span>SMED C/DISEÑO</span>
       </button>
-      <button onclick="switchTab('matriz-editor')" id="tab-btn-matriz-editor" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors text-slate-300 hover:bg-slate-800">
+      <button onclick="switchTab('matriz-editor')" id="tab-btn-matriz-editor" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-colors whitespace-nowrap shrink-0 text-slate-300 hover:bg-slate-800">
         <i class="fa-solid fa-table-list"></i>
         <span>MATRIZ</span>
       </button>
-      <button onclick="switchTab('metrics-dashboard')" id="tab-btn-metrics-dashboard" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors text-slate-300 hover:bg-slate-800">
+      <button onclick="switchTab('metrics-dashboard')" id="tab-btn-metrics-dashboard" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-colors whitespace-nowrap shrink-0 text-slate-300 hover:bg-slate-800">
         <i class="fa-solid fa-chart-line"></i>
         <span>INDICADORES</span>
       </button>
     </nav>
 
     <!-- Indicador de Estado Global -->
-    <div class="flex items-center space-x-4">
-      <span id="estado-nube" class="text-xs text-slate-400"></span>
-      <div class="text-xs text-slate-400">
+    <div class="flex items-center space-x-3 sm:space-x-4">
+      <span id="estado-nube" class="text-[11px] sm:text-xs text-slate-400"></span>
+      <div class="hidden sm:block text-xs text-slate-400">
         <i class="fa-regular fa-clock mr-1"></i> <span id="clock-display">--:--:--</span>
       </div>
     </div>
@@ -112,13 +127,13 @@
   <main class="flex-1 overflow-hidden relative">
 
     <!-- 1. SECCIÓN: SMED CONVERSION (EJECUCIÓN Y CHECKLIST) -->
-    <section id="tab-smed-execution" class="h-full flex flex-col lg:flex-row p-4 gap-4 overflow-y-auto custom-scrollbar">
+    <section id="tab-smed-execution" class="h-full flex flex-col lg:flex-row p-2 sm:p-4 gap-3 sm:gap-4 overflow-y-auto custom-scrollbar">
       
       <!-- Panel Izquierdo: Configuración & Métricas SMED -->
       <div class="w-full lg:w-1/3 flex flex-col gap-4 shrink-0 no-print">
         
         <!-- Formulario de Configuración de Cambio -->
-        <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+        <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-base font-bold text-white flex items-center">
               <svg class="w-5 h-5 text-brand-lightBlue mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg> Conversión
@@ -205,7 +220,7 @@
         </div>
 
         <!-- Dashboard de Avance & Cronómetro -->
-        <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex-1 flex flex-col justify-between">
+        <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl flex-1 flex flex-col justify-between">
           <div>
             <div class="flex justify-between items-center mb-3">
               <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cronómetro de Cambio</h3>
@@ -258,7 +273,7 @@
       </div>
 
       <!-- Panel Derecho: Checklist Interactivo por Áreas -->
-      <div class="flex-1 bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex flex-col overflow-hidden print-light">
+      <div class="shrink-0 lg:shrink lg:flex-1 bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl flex flex-col lg:overflow-hidden print-light">
         
         <!-- Header del Checklist en Pantalla -->
         <div class="flex flex-wrap justify-between items-center pb-4 border-b border-brand-border gap-3">
@@ -287,14 +302,14 @@
         </div>
 
         <!-- Tabla / Lista de Tareas -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar mt-4">
+        <div class="lg:flex-1 overflow-x-auto lg:overflow-y-auto custom-scrollbar mt-4">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider sticky top-0 border-b border-slate-700 z-10">
                 <th class="p-3">Equipo / Estación</th>
-                <th class="p-3 text-center w-36">Conversión</th>
-                <th class="p-3 text-center w-44">Liberado por calidad</th>
-                <th class="p-3 text-center w-36">Estatus</th>
+                <th class="p-3 text-center w-24 sm:w-36">Conversión</th>
+                <th class="p-3 text-center w-28 sm:w-44">Liberado por calidad</th>
+                <th class="p-3 text-center w-20 sm:w-36">Estatus</th>
               </tr>
             </thead>
             <tbody id="checklist-table-body" class="divide-y divide-slate-800 text-sm text-slate-200">
@@ -306,13 +321,13 @@
     </section>
 
     <!-- 1B. SECCIÓN: SMED C/DISEÑO -->
-    <section id="tab-smed-diseno" class="h-full hidden flex-col lg:flex-row p-4 gap-4 overflow-y-auto custom-scrollbar">
+    <section id="tab-smed-diseno" class="h-full hidden flex-col lg:flex-row p-2 sm:p-4 gap-3 sm:gap-4 overflow-y-auto custom-scrollbar">
 
       <!-- Panel Izquierdo: Configuración & Cronómetro -->
       <div class="w-full lg:w-1/3 flex flex-col gap-4 shrink-0 no-print">
 
         <!-- Formulario de Cambio de Diseño -->
-        <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+        <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-base font-bold text-white flex items-center">
               <svg class="w-6 h-5 text-brand-lightBlue mr-2" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg> Configuración de Cambio de Diseño
@@ -404,7 +419,7 @@
       </div>
 
       <!-- Panel Derecho: Cambios en curso y Registro -->
-      <div class="flex-1 bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex flex-col overflow-y-auto custom-scrollbar print-light">
+      <div class="shrink-0 lg:shrink lg:flex-1 bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl flex flex-col lg:overflow-y-auto custom-scrollbar print-light">
         <div class="pb-4 border-b border-brand-border flex flex-wrap justify-between items-center gap-3">
           <div>
             <h2 class="text-lg font-bold text-white flex items-center print-light">
@@ -469,8 +484,8 @@
     </section>
 
     <!-- 2. SECCIÓN: MATRIZ DE TAREAS (DATABASE EDITOR) -->
-    <section id="tab-matriz-editor" class="h-full p-4 hidden overflow-y-auto custom-scrollbar">
-      <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex flex-col h-full">
+    <section id="tab-matriz-editor" class="h-full p-2 sm:p-4 hidden overflow-y-auto custom-scrollbar">
+      <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl flex flex-col min-h-full lg:h-full">
 
         <!-- Selector de matriz -->
         <div class="flex flex-wrap items-center gap-3 pb-4 border-b border-brand-border">
@@ -567,7 +582,7 @@
     </section>
 
     <!-- 3. SECCIÓN: DASHBOARD DE INDICADORES OEE Y SMED -->
-    <section id="tab-metrics-dashboard" class="h-full p-4 hidden overflow-y-auto custom-scrollbar space-y-4">
+    <section id="tab-metrics-dashboard" class="h-full p-2 sm:p-4 hidden overflow-y-auto custom-scrollbar space-y-4">
 
       <!-- Periodo a visualizar -->
       <div class="bg-brand-card p-4 rounded-xl border border-brand-border shadow-xl">
@@ -592,7 +607,7 @@
       </div>
 
       <!-- Resultados: SMED Conversión -->
-      <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+      <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl">
         <div class="flex items-center mb-4 pb-3 border-b border-brand-border">
           <span class="bg-blue-500/10 p-2 rounded-lg text-brand-lightBlue mr-3"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg></span>
           <div>
@@ -667,7 +682,7 @@
       </div>
 
       <!-- Resultados: SMED C/Diseño -->
-      <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+      <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl">
         <div class="flex items-center mb-4 pb-3 border-b border-brand-border">
           <span class="bg-blue-500/10 p-2 rounded-lg text-brand-lightBlue mr-3"><svg class="w-6 h-5" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg></span>
           <div>
@@ -807,7 +822,7 @@
 
   <!-- MODAL PARA EDITAR UN CAMBIO DE DISEÑO EN CURSO -->
   <div id="modal-editar-cambio" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
-    <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto custom-scrollbar">
+    <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden max-h-[92dvh] overflow-y-auto custom-scrollbar">
       <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
         <h3 class="text-base font-bold text-white flex items-center">
           <i class="fa-solid fa-pen text-brand-accent mr-2"></i> Editar Cambio de Diseño
@@ -946,7 +961,7 @@
     // =====================================================================
     // Si la página NO la sirve Apps Script (p. ej. GitHub Pages), pega aquí la URL de la aplicación web
     // (termina en /exec). Si se sirve desde Apps Script, déjalo vacío: usa la conexión interna.
-    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbz1-JrvHUviCXi-W644L-W5A51_Vw5V1-k_tHXMFTkmreNq5C-MhFzFM2_XnGc018_j/exec';
+    const URL_APPS_SCRIPT = '';
 
     const EN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
     const Nube = {
@@ -1028,13 +1043,13 @@
       const el = document.getElementById('estado-nube');
       if (!el) return;
       if (tipo === 'ok') {
-        el.className = 'text-xs text-emerald-400';
+        el.className = 'text-[11px] sm:text-xs text-emerald-400';
         el.innerHTML = `<i class="fa-solid fa-cloud mr-1"></i>Google Sheets · ${new Date().toLocaleTimeString()}`;
       } else if (tipo === 'error') {
-        el.className = 'text-xs text-rose-400';
+        el.className = 'text-[11px] sm:text-xs text-rose-400';
         el.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i>Sin conexión: ${mensaje || ''}`;
       } else {
-        el.className = 'text-xs text-slate-500';
+        el.className = 'text-[11px] sm:text-xs text-slate-500';
         el.innerHTML = '<i class="fa-solid fa-hard-drive mr-1"></i>Modo local (sin Google Sheets)';
       }
     }
@@ -1802,7 +1817,7 @@
               </p>
             </div>
             <div class="text-right">
-              <span id="cd-timer-${c.id}" class="font-mono ${cronoGrande ? 'text-5xl md:text-6xl' : 'text-2xl'} font-extrabold tracking-widest transition-colors ${excedido ? 'text-rose-500' : 'text-emerald-400'}">${formatoTiempo(seg)}</span>
+              <span id="cd-timer-${c.id}" class="font-mono ${cronoGrande ? 'text-4xl sm:text-5xl md:text-6xl' : 'text-2xl'} font-extrabold tracking-widest transition-colors ${excedido ? 'text-rose-500' : 'text-emerald-400'}">${formatoTiempo(seg)}</span>
               <p class="${cronoGrande ? 'text-sm' : 'text-[11px]'} text-slate-400">Objetivo ${objetivoATexto(c.objetivo)}${pausado ? ' · <span class="text-amber-400 font-semibold">En pausa</span>' : ''}</p>
             </div>
           </div>
