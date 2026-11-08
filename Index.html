@@ -1,0 +1,2671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema SMED & Mejora Continua - Planta DWI Latas de Aluminio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js para Indicadores -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0f172a',
+              navy: '#1b365d',
+              blue: '#2563eb',
+              lightBlue: '#38bdf8',
+              accent: '#10b981',
+              warning: '#f59e0b',
+              danger: '#ef4444',
+              card: '#1e293b',
+              border: '#334155'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: white !important; color: black !important; }
+      .print-light { background-color: white !important; color: black !important; border: 1px solid #ccc !important; }
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden custom-scrollbar">
+
+  <!-- Pantalla de carga mientras se conecta con Google Sheets -->
+  <div id="overlay-nube" class="hidden fixed inset-0 z-[60] bg-slate-950/90 flex items-center justify-center no-print">
+    <div class="text-center">
+      <i class="fa-solid fa-cloud-arrow-down text-3xl text-brand-lightBlue mb-3 animate-pulse"></i>
+      <p class="text-sm text-slate-300">Conectando con Google Sheets…</p>
+    </div>
+  </div>
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header class="bg-brand-navy border-b border-brand-border px-6 py-3 flex items-center justify-between no-print shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="bg-brand-blue p-2 rounded-lg text-white">
+        <i class="fa-solid font-bold fa-industry text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg text-white leading-tight">Planta Mérida</h1>
+        <p class="text-xs text-brand-lightBlue">Sistema de Gestión SMED & Mejora Continua</p>
+      </div>
+    </div>
+
+    <!-- Pestañas de Navegación principales -->
+    <nav class="flex space-x-2">
+      <button onclick="switchTab('smed-execution')" id="tab-btn-smed-execution" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors bg-brand-blue text-white">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg>
+        <span>SMED CONVERSION</span>
+      </button>
+      <button onclick="switchTab('smed-diseno')" id="tab-btn-smed-diseno" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors text-slate-300 hover:bg-slate-800">
+        <svg class="w-5 h-4" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg>
+        <span>SMED C/DISEÑO</span>
+      </button>
+      <button onclick="switchTab('matriz-editor')" id="tab-btn-matriz-editor" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors text-slate-300 hover:bg-slate-800">
+        <i class="fa-solid fa-table-list"></i>
+        <span>MATRIZ</span>
+      </button>
+      <button onclick="switchTab('metrics-dashboard')" id="tab-btn-metrics-dashboard" class="px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors text-slate-300 hover:bg-slate-800">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>INDICADORES</span>
+      </button>
+    </nav>
+
+    <!-- Indicador de Estado Global -->
+    <div class="flex items-center space-x-4">
+      <span id="estado-nube" class="text-xs text-slate-400"></span>
+      <div class="text-xs text-slate-400">
+        <i class="fa-regular fa-clock mr-1"></i> <span id="clock-display">--:--:--</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="flex-1 overflow-hidden relative">
+
+    <!-- 1. SECCIÓN: SMED CONVERSION (EJECUCIÓN Y CHECKLIST) -->
+    <section id="tab-smed-execution" class="h-full flex flex-col lg:flex-row p-4 gap-4 overflow-y-auto custom-scrollbar">
+      
+      <!-- Panel Izquierdo: Configuración & Métricas SMED -->
+      <div class="w-full lg:w-1/3 flex flex-col gap-4 shrink-0 no-print">
+        
+        <!-- Formulario de Configuración de Cambio -->
+        <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-white flex items-center">
+              <svg class="w-5 h-5 text-brand-lightBlue mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg> Conversión
+            </h2>
+          </div>
+
+          <form id="smed-config-form" onsubmit="generarChecklistSMED(event)" class="space-y-4">
+            <!-- Tipo de Cambio -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de Cambio:</label>
+              <select id="select-tipo-cambio" onchange="actualizarDesplegablesFormatos(); cargarObjetivoConversion()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                <option value="Altura">Altura</option>
+                <option value="Diámetro y altura">Diámetro y altura</option>
+              </select>
+            </div>
+
+            <!-- Formato Origen & Destino en Grid -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Formato Origen:</label>
+                <select id="select-formato-origen" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                  <!-- Se llena dinámicamente JS -->
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Formato Destino:</label>
+                <select id="select-formato-destino" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                  <!-- Se llena dinámicamente JS -->
+                </select>
+              </div>
+            </div>
+
+            <!-- Responsable -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Responsable:</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
+                  <i class="fa-solid fa-user"></i>
+                </span>
+                <input type="text" id="input-tecnico-responsable" required placeholder="Ej. Ing. Carlos Mendoza" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+              </div>
+            </div>
+
+            <!-- Fecha + Hora de inicio -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha:</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
+                    <i class="fa-regular fa-calendar"></i>
+                  </span>
+                  <input type="date" id="input-fecha-conversion" required style="color-scheme: dark;" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-2 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Hora de inicio:</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
+                    <i class="fa-solid fa-play text-[10px]"></i>
+                  </span>
+                  <input type="time" id="input-hora-inicio" required style="color-scheme: dark;" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-2 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+                </div>
+              </div>
+            </div>
+
+            <!-- Objetivo de tiempo -->
+            <div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Objetivo de tiempo (hh:mm):</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
+                    <i class="fa-regular fa-clock"></i>
+                  </span>
+                  <input type="text" id="input-objetivo-conversion" required inputmode="numeric" maxlength="5" placeholder="00:00" oninput="formatearObjetivoConversion(this)" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2 transition duration-200">
+              <i class="fa-solid fa-bolt"></i>
+              <span>Iniciar Conversión</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Dashboard de Avance & Cronómetro -->
+        <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cronómetro de Cambio</h3>
+              <div class="flex space-x-1">
+                <button onclick="toggleTimer()" id="btn-timer-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold transition">
+                  <i class="fa-solid fa-play mr-1"></i> Iniciar
+                </button>
+                <button onclick="resetTimer()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded text-xs transition">
+                  <i class="fa-solid fa-rotate-left"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Display de Tiempo -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center mb-5">
+              <span id="timer-display" class="font-mono text-3xl font-extrabold text-emerald-400 tracking-widest transition-colors">00:00:00</span>
+              <p class="text-[11px] text-slate-400 mt-1">Tiempo Transcurrido (<span id="target-smed-time">Objetivo sin definir</span>)</p>
+            </div>
+
+            <!-- Resumen de Avance (%) -->
+            <div class="space-y-2">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-slate-300">Avance Total de Conversión</span>
+                <span id="text-percentage" class="text-brand-accent font-bold">0.0%</span>
+              </div>
+              <div class="w-full bg-slate-800 h-3.5 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                <div id="progress-bar-fill" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300 w-0"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-400">
+                <span>Equipos al 100%: <strong id="count-completed" class="text-white">0</strong></span>
+                <span>Pendientes: <strong id="count-pending" class="text-white">0</strong></span>
+                <span>Total equipos: <strong id="count-total" class="text-white">0</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botones de Acción / Exportación -->
+          <div class="pt-4 border-t border-slate-700/60 flex space-x-2 mt-4">
+            <button onclick="window.print()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2 px-3 rounded-lg border border-slate-600 flex items-center justify-center space-x-1.5 transition">
+              <i class="fa-solid fa-print"></i>
+              <span>Imprimir / PDF</span>
+            </button>
+            <button onclick="guardarRegistroSMED()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition shadow">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Finalizar</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Panel Derecho: Checklist Interactivo por Áreas -->
+      <div class="flex-1 bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex flex-col overflow-hidden print-light">
+        
+        <!-- Header del Checklist en Pantalla -->
+        <div class="flex flex-wrap justify-between items-center pb-4 border-b border-brand-border gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center print-light">
+              <i class="fa-solid fa-clipboard-check text-brand-accent mr-2 no-print"></i>
+              <span>Checklist de avance</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5" id="checklist-subtitle">
+              Ruta: <span id="sub-ruta" class="text-brand-lightBlue font-medium">12 Oz ➔ 16 Oz</span> | 
+              Tipo: <span id="sub-tipo" class="text-brand-lightBlue font-medium">Altura</span> | 
+              Fecha: <span id="sub-fecha" class="text-white font-mono font-medium">--</span> | 
+              Inicio: <span id="sub-inicio" class="text-white font-mono font-medium">--:--</span> | 
+              Objetivo: <span id="sub-objetivo" class="text-amber-400 font-mono font-medium">--:--</span> | 
+              Resp: <span id="sub-resp" class="text-white font-medium">No Asignado</span>
+            </p>
+          </div>
+
+          <!-- Filtro por Área -->
+          <div class="flex items-center space-x-2 no-print">
+            <label class="text-xs text-slate-400 font-semibold">Filtrar Área:</label>
+            <select id="filter-area-select" onchange="renderChecklist()" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none">
+              <!-- Se llena dinámicamente desde areasLista -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Tabla / Lista de Tareas -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar mt-4">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider sticky top-0 border-b border-slate-700 z-10">
+                <th class="p-3">Equipo / Estación</th>
+                <th class="p-3 text-center w-36">Conversión</th>
+                <th class="p-3 text-center w-44">Liberado por calidad</th>
+                <th class="p-3 text-center w-36">Estatus</th>
+              </tr>
+            </thead>
+            <tbody id="checklist-table-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+              <!-- Carga dinámicamente JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1B. SECCIÓN: SMED C/DISEÑO -->
+    <section id="tab-smed-diseno" class="h-full hidden flex-col lg:flex-row p-4 gap-4 overflow-y-auto custom-scrollbar">
+
+      <!-- Panel Izquierdo: Configuración & Cronómetro -->
+      <div class="w-full lg:w-1/3 flex flex-col gap-4 shrink-0 no-print">
+
+        <!-- Formulario de Cambio de Diseño -->
+        <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-white flex items-center">
+              <svg class="w-6 h-5 text-brand-lightBlue mr-2" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg> Configuración de Cambio de Diseño
+            </h2>
+          </div>
+
+          <form id="diseno-config-form" onsubmit="iniciarCambioDiseno(event)" onfocusin="revelarChecklistPrevio(event)" class="space-y-4">
+            <!-- Fecha -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha:</label>
+              <input type="date" id="diseno-fecha" required style="color-scheme: dark" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Línea:</label>
+                <select id="diseno-linea" onchange="actualizarImpresoras()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                  <option value="Línea 1">Línea 1</option>
+                  <option value="Línea 2">Línea 2</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Presentación:</label>
+                <select id="diseno-presentacion" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                  <option value="12 Oz">12 Oz</option>
+                  <option value="16 Oz">16 Oz</option>
+                  <option value="8 Oz lean">8 Oz lean</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Impresora + Objetivo de tiempo -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Impresora:</label>
+                <select id="diseno-impresora" onchange="cargarObjetivoImpresora()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                  <option value="Impresora 1">Impresora 1</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Objetivo de tiempo (hh:mm):</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
+                    <i class="fa-regular fa-clock"></i>
+                  </span>
+                  <input type="text" id="diseno-objetivo" required inputmode="numeric" maxlength="5" placeholder="00:00" oninput="formatearObjetivo(this)" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Diseño actual:</label>
+                <input type="text" id="diseno-actual" required placeholder="Ej. Diseño A" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Diseño a ingresar:</label>
+                <input type="text" id="diseno-nuevo" required placeholder="Ej. Diseño B" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Responsable:</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
+                    <i class="fa-solid fa-user"></i>
+                  </span>
+                  <input type="text" id="diseno-responsable" required placeholder="Ej. Carlos Mendoza" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Grupo:</label>
+                <select id="diseno-grupo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+                  <option value="Grupo A">Grupo A</option>
+                  <option value="Grupo B">Grupo B</option>
+                  <option value="Grupo C">Grupo C</option>
+                  <option value="Grupo D">Grupo D</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2 transition duration-200">
+              <i class="fa-solid fa-bolt"></i>
+              <span>Iniciar Cambio de Diseño</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Panel Derecho: Cambios en curso y Registro -->
+      <div class="flex-1 bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex flex-col overflow-y-auto custom-scrollbar print-light">
+        <div class="pb-4 border-b border-brand-border flex flex-wrap justify-between items-center gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center print-light">
+              <i class="fa-solid fa-clipboard-list text-brand-accent mr-2 no-print"></i>
+              <span>Cambios de Diseño en Curso</span>
+              <span id="diseno-activos-count" class="ml-2 text-xs font-bold bg-brand-blue/20 text-brand-lightBlue border border-brand-blue/40 rounded-full px-2 py-0.5">0</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Puedes tener varios cambios al mismo tiempo; cada uno conserva su propio cronómetro y sus datos se pueden editar.</p>
+          </div>
+          <div class="no-print flex items-center gap-2">
+            <button id="btn-nuevo-cambio" onclick="iniciarOtroCambio()" class="hidden bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-plus"></i>
+              <span>Iniciar otro cambio</span>
+            </button>
+            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2 px-3 rounded-lg border border-slate-600 flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-print"></i>
+              <span>Imprimir / PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Checklist previo: actividades (vienen de MATRIZ > SMED C/DISEÑO) del siguiente cambio a iniciar -->
+        <div id="diseno-checklist-previo" class="mt-4 bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-bold text-white flex items-center">
+              <i class="fa-solid fa-list-check text-brand-accent mr-2 no-print"></i> Checklist de actividades
+              <span class="text-[11px] font-normal text-slate-500 ml-2">para el siguiente cambio a iniciar</span>
+            </h3>
+            <span class="text-xs text-slate-400">Realizadas: <strong id="diseno-check-count" class="text-white">0/0</strong></span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-3">
+            <div id="diseno-check-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300 w-0"></div>
+          </div>
+          <div id="diseno-checklist" class="space-y-1 max-h-56 overflow-y-auto custom-scrollbar pr-1"></div>
+        </div>
+
+        <!-- Cambios de diseño en curso (uno por tarjeta) -->
+        <div id="diseno-cambios-activos" class="mt-4 space-y-3"></div>
+
+        <h3 class="text-sm font-bold text-white mt-4 mb-2">Registro de Cambios de Diseño</h3>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Línea</th>
+                <th class="p-3">Presentación</th>
+                <th class="p-3">Impresora</th>
+                <th class="p-3">Responsable</th>
+                <th class="p-3">Grupo</th>
+                <th class="p-3 text-center">Objetivo</th>
+                <th class="p-3 text-center">Tiempo</th>
+                <th class="p-3 text-center">Ganado / Excedido</th>
+              </tr>
+            </thead>
+            <tbody id="diseno-registro-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+              <tr><td colspan="9" class="p-6 text-center text-slate-500 italic">Aún no hay cambios de diseño registrados.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. SECCIÓN: MATRIZ DE TAREAS (DATABASE EDITOR) -->
+    <section id="tab-matriz-editor" class="h-full p-4 hidden overflow-y-auto custom-scrollbar">
+      <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl flex flex-col h-full">
+
+        <!-- Selector de matriz -->
+        <div class="flex flex-wrap items-center gap-3 pb-4 border-b border-brand-border">
+          <span class="text-xs font-semibold text-slate-300">Matriz de:</span>
+          <div class="flex gap-2">
+            <button onclick="cambiarVistaMatriz('conv')" id="matriz-btn-conv" class="px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-colors bg-brand-blue text-white">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg>
+              <span>SMED CONVERSIÓN</span>
+            </button>
+            <button onclick="cambiarVistaMatriz('dis')" id="matriz-btn-dis" class="px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-colors bg-slate-800 text-slate-300 hover:bg-slate-700">
+              <svg class="w-5 h-4" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg>
+              <span>SMED C/DISEÑO</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Vista: SMED Conversión (áreas y equipos) -->
+        <div id="matriz-vista-conv" class="flex flex-col flex-1 min-h-0 mt-4">
+        <div class="flex flex-wrap justify-between items-center pb-4 border-b border-brand-border gap-4">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center">
+              <i class="fa-solid fa-database text-brand-blue mr-2"></i> Matriz de Áreas y Equipos
+            </h2>
+            <p class="text-xs text-slate-400">Equipos que forman el checklist operativo de conversión, organizados por área de manufactura DWI.</p>
+          </div>
+
+          <!-- Botones Agregar -->
+          <div class="flex items-center gap-2">
+            <button onclick="openAreaModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold py-2 px-3.5 rounded-lg flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-layer-group"></i>
+              <span>Agregar Área</span>
+            </button>
+            <button onclick="openAddTaskModal()" class="bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold py-2 px-3.5 rounded-lg flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-plus"></i>
+              <span>Agregar Equipo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Áreas (editar / eliminar) -->
+        <div class="mt-4">
+          <p class="text-xs font-semibold text-slate-300 mb-2">Áreas</p>
+          <div id="matriz-areas" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- Tabla Matriz Editable -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar mt-4">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider sticky top-0 border-b border-slate-700">
+                <th class="p-3 w-48">Área</th>
+                <th class="p-3">Equipo / Estación</th>
+                <th class="p-3 text-center w-20">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="matriz-table-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+              <!-- Se renderiza desde JS -->
+            </tbody>
+          </table>
+        </div>
+        </div>
+
+        <!-- Vista: SMED C/Diseño (actividades) -->
+        <div id="matriz-vista-dis" class="hidden flex-col flex-1 min-h-0 mt-4">
+          <div class="flex flex-wrap justify-between items-center pb-4 border-b border-brand-border gap-4">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center">
+                <i class="fa-solid fa-list-check text-brand-blue mr-2"></i> Actividades de Cambio de Diseño
+              </h2>
+              <p class="text-xs text-slate-400">Lista de actividades que pertenecen al SMED C/Diseño.</p>
+            </div>
+            <button onclick="openActividadModal()" class="bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold py-2 px-3.5 rounded-lg flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-plus"></i>
+              <span>Agregar Actividad</span>
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto custom-scrollbar mt-4">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider sticky top-0 border-b border-slate-700">
+                  <th class="p-3 w-16 text-center">#</th>
+                  <th class="p-3">Actividad</th>
+                  <th class="p-3 text-center w-24">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="actividades-diseno-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+                <!-- Se renderiza desde JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. SECCIÓN: DASHBOARD DE INDICADORES OEE Y SMED -->
+    <section id="tab-metrics-dashboard" class="h-full p-4 hidden overflow-y-auto custom-scrollbar space-y-4">
+
+      <!-- Periodo a visualizar -->
+      <div class="bg-brand-card p-4 rounded-xl border border-brand-border shadow-xl">
+        <div class="flex flex-wrap items-end gap-4">
+          <div class="flex items-center text-sm font-bold text-white mr-2 self-center">
+            <i class="fa-regular fa-calendar-days text-brand-lightBlue mr-2"></i> Periodo
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Desde:</label>
+            <input type="date" id="ind-fecha-desde" onchange="renderIndicadores()" style="color-scheme: dark;" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Hasta:</label>
+            <input type="date" id="ind-fecha-hasta" onchange="renderIndicadores()" style="color-scheme: dark;" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+          </div>
+          <button onclick="limpiarPeriodoIndicadores()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold py-2 px-3.5 rounded-lg flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>Limpiar filtros</span>
+          </button>
+          <span id="ind-periodo-texto" class="text-xs text-slate-400 self-center">Mostrando todos los registros</span>
+        </div>
+      </div>
+
+      <!-- Resultados: SMED Conversión -->
+      <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+        <div class="flex items-center mb-4 pb-3 border-b border-brand-border">
+          <span class="bg-blue-500/10 p-2 rounded-lg text-brand-lightBlue mr-3"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg></span>
+          <div>
+            <h2 class="text-base font-bold text-white">Conversiones</h2>
+            <p class="text-xs text-slate-400">Resultados de las conversiones finalizadas (tiempo real contra objetivo).</p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex flex-wrap items-end gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de cambio:</label>
+            <select id="ind-conv-f-tipo" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Formato:</label>
+            <select id="ind-conv-f-formato" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Cambios registrados</p>
+            <h3 id="ind-conv-kpi-total" class="text-xl font-bold text-white mt-1">0</h3>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Tiempo promedio</p>
+            <h3 id="ind-conv-kpi-prom" class="text-xl font-bold text-white font-mono mt-1">--:--:--</h3>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Dentro de objetivo</p>
+            <h3 id="ind-conv-kpi-meta" class="text-xl font-bold text-white mt-1">--</h3>
+            <span id="ind-conv-kpi-meta-sub" class="text-[11px] text-slate-500">0 de 0 cambios</span>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Desviación promedio vs objetivo</p>
+            <h3 id="ind-conv-kpi-dif" class="text-xl font-bold text-white font-mono mt-1">--</h3>
+          </div>
+        </div>
+
+        <h3 class="text-sm font-bold text-white mb-2">Tiempo real vs objetivo por cambio (min) <span class="text-xs font-normal text-slate-500 ml-2">Haz clic en una barra para ver el detalle del día</span></h3>
+        <div class="h-60 mb-2">
+          <canvas id="ind-conv-chart"></canvas>
+          <p id="ind-conv-chart-empty" class="hidden h-full flex items-center justify-center text-sm text-slate-500 italic">Aún no hay cambios registrados.</p>
+        </div>
+
+        <div id="ind-conv-detalle" class="hidden mb-2"></div>
+
+        <h3 class="text-sm font-bold text-white mt-4 mb-2">Resultados registrados</h3>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Tipo de cambio</th>
+                <th class="p-3">Formato</th>
+                <th class="p-3">Responsable</th>
+                <th class="p-3">Inicio</th>
+                <th class="p-3">Fin</th>
+                <th class="p-3 text-center">Equipos al 100%</th>
+                <th class="p-3 text-center">Objetivo</th>
+                <th class="p-3 text-center">Tiempo</th>
+                <th class="p-3 text-center">Ganado / Excedido</th>
+                <th class="p-3 text-center w-16 no-print">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="ind-conv-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+              <tr><td colspan="11" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resultados: SMED C/Diseño -->
+      <div class="bg-brand-card p-5 rounded-xl border border-brand-border shadow-xl">
+        <div class="flex items-center mb-4 pb-3 border-b border-brand-border">
+          <span class="bg-blue-500/10 p-2 rounded-lg text-brand-lightBlue mr-3"><svg class="w-6 h-5" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="6" width="6" height="14" rx="1"/><path d="M4.5 9v3"/><circle cx="17" cy="12" r="8.5"/><circle cx="17" cy="12" r="2.2" fill="currentColor"/><path d="M17 3.5v3.3M17 17.2v3.3M8.5 12h3.3M22.2 12h3.3M11 6l2.3 2.3M20.7 15.7L23 18M11 18l2.3-2.3M20.7 8.3L23 6"/><rect x="14.6" y="2" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="14.6" y="19.4" width="4.8" height="2.6" rx=".6" fill="currentColor" stroke="none"/><rect x="23.4" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/><rect x="8" y="9.7" width="2.6" height="4.6" rx=".6" fill="currentColor" stroke="none"/></svg></span>
+          <div>
+            <h2 class="text-base font-bold text-white">Cambios de diseño</h2>
+            <p class="text-xs text-slate-400">Resultados de los cambios de diseño finalizados (tiempo real contra objetivo).</p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex flex-wrap items-end gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Línea:</label>
+            <select id="ind-dis-f-linea" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Impresora:</label>
+            <select id="ind-dis-f-impresora" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Cambios registrados</p>
+            <h3 id="ind-dis-kpi-total" class="text-xl font-bold text-white mt-1">0</h3>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Tiempo promedio</p>
+            <h3 id="ind-dis-kpi-prom" class="text-xl font-bold text-white font-mono mt-1">--:--:--</h3>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Dentro de objetivo</p>
+            <h3 id="ind-dis-kpi-meta" class="text-xl font-bold text-white mt-1">--</h3>
+            <span id="ind-dis-kpi-meta-sub" class="text-[11px] text-slate-500">0 de 0 cambios</span>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Desviación promedio vs objetivo</p>
+            <h3 id="ind-dis-kpi-dif" class="text-xl font-bold text-white font-mono mt-1">--</h3>
+          </div>
+        </div>
+
+        <h3 class="text-sm font-bold text-white mb-2">Tiempo real vs objetivo por cambio (min) <span class="text-xs font-normal text-slate-500 ml-2">Haz clic en una barra para ver el detalle del día</span></h3>
+        <div class="h-60 mb-2">
+          <canvas id="ind-dis-chart"></canvas>
+          <p id="ind-dis-chart-empty" class="hidden h-full flex items-center justify-center text-sm text-slate-500 italic">Aún no hay cambios registrados.</p>
+        </div>
+
+        <div id="ind-dis-detalle" class="hidden mb-2"></div>
+
+        <h3 class="text-sm font-bold text-white mt-4 mb-2">Resultados registrados</h3>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Línea</th>
+                <th class="p-3">Presentación</th>
+                <th class="p-3">Impresora</th>
+                <th class="p-3">Diseño que se cambió</th>
+                <th class="p-3">Diseño que ingresó</th>
+                <th class="p-3">Responsable</th>
+                <th class="p-3">Grupo</th>
+                <th class="p-3 text-center">Objetivo</th>
+                <th class="p-3 text-center">Tiempo</th>
+                <th class="p-3 text-center">Ganado / Excedido</th>
+                <th class="p-3 text-center w-16 no-print">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="ind-dis-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+              <tr><td colspan="12" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL PARA AGREGAR NUEVA TAREA A LA MATRIZ -->
+  <div id="modal-add-task" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden">
+      <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i id="modal-equipo-icon" class="fa-solid fa-plus-circle text-brand-accent mr-2"></i> <span id="modal-equipo-title">Agregar Equipo</span>
+        </h3>
+        <button onclick="closeAddTaskModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form onsubmit="saveNewTask(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Área Operativa:</label>
+          <select id="modal-input-area" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            <!-- Se llena dinámicamente desde areasLista -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Equipo / Estación:</label>
+          <input type="text" id="modal-input-equipo" required placeholder="Ej. BM18" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+        </div>
+
+        <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
+          <button type="button" onclick="closeAddTaskModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold rounded-lg" id="modal-equipo-submit">Guardar Equipo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ELIMINAR UN RESULTADO REGISTRADO (requiere clave) -->
+  <div id="modal-borrar-registro" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-brand-card w-full max-w-sm rounded-xl border border-brand-border shadow-2xl overflow-hidden">
+      <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="fa-solid fa-trash-can text-rose-400 mr-2"></i> Eliminar resultado
+        </h3>
+        <button onclick="cerrarBorrarRegistro()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form onsubmit="confirmarBorrarRegistro(event)" class="p-5 space-y-4">
+        <p class="text-xs text-slate-300">Se eliminará este registro de forma permanente:</p>
+        <p id="borrar-registro-detalle" class="text-sm text-white bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"></p>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Clave para eliminar:</label>
+          <input type="password" id="borrar-clave" required autocomplete="off" inputmode="numeric" placeholder="Ingresa la clave" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
+          <p id="borrar-clave-error" class="hidden text-xs text-rose-400 mt-1">Clave incorrecta. Intenta de nuevo.</p>
+        </div>
+        <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
+          <button type="button" onclick="cerrarBorrarRegistro()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg">Eliminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL PARA EDITAR UN CAMBIO DE DISEÑO EN CURSO -->
+  <div id="modal-editar-cambio" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto custom-scrollbar">
+      <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="fa-solid fa-pen text-brand-accent mr-2"></i> Editar Cambio de Diseño
+        </h3>
+        <button onclick="cerrarEdicionCambio()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form onsubmit="guardarEdicionCambio(event)" class="p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha:</label>
+            <input type="date" id="ed-fecha" required style="color-scheme: dark" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Objetivo (hh:mm):</label>
+            <input type="text" id="ed-objetivo" required inputmode="numeric" maxlength="5" placeholder="00:00" oninput="soloFormatoHHMM(this)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Línea:</label>
+            <select id="ed-linea" onchange="actualizarImpresorasEdicion()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+              <option value="Línea 1">Línea 1</option>
+              <option value="Línea 2">Línea 2</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Impresora:</label>
+            <select id="ed-impresora" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue"></select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Presentación:</label>
+            <select id="ed-presentacion" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+              <option value="12 Oz">12 Oz</option>
+              <option value="16 Oz">16 Oz</option>
+              <option value="8 Oz lean">8 Oz lean</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Grupo:</label>
+            <select id="ed-grupo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+              <option value="Grupo A">Grupo A</option>
+              <option value="Grupo B">Grupo B</option>
+              <option value="Grupo C">Grupo C</option>
+              <option value="Grupo D">Grupo D</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Diseño actual:</label>
+            <input type="text" id="ed-actual" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Diseño a ingresar:</label>
+            <input type="text" id="ed-nuevo" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Responsable:</label>
+          <input type="text" id="ed-responsable" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue">
+        </div>
+        <p class="text-[11px] text-slate-500">Editar los datos no reinicia ni modifica el cronómetro del cambio.</p>
+        <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
+          <button type="button" onclick="cerrarEdicionCambio()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold rounded-lg">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL PARA AGREGAR / EDITAR ACTIVIDAD DE C/DISEÑO -->
+  <div id="modal-actividad" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden">
+      <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="fa-solid fa-list-check text-brand-accent mr-2"></i> <span id="modal-actividad-title">Agregar Actividad</span>
+        </h3>
+        <button onclick="closeActividadModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form onsubmit="saveActividad(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Actividad:</label>
+          <textarea id="modal-actividad-texto" required rows="3" placeholder="Describa la actividad del cambio de diseño..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"></textarea>
+        </div>
+        <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
+          <button type="button" onclick="closeActividadModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
+          <button type="submit" id="modal-actividad-submit" class="px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold rounded-lg">Guardar Actividad</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL PARA AGREGAR / EDITAR ÁREA -->
+  <div id="modal-area" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-brand-card w-full max-w-sm rounded-xl border border-brand-border shadow-2xl overflow-hidden">
+      <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="fa-solid fa-layer-group text-brand-accent mr-2"></i> <span id="modal-area-title">Agregar Área</span>
+        </h3>
+        <button onclick="closeAreaModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form onsubmit="saveArea(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nombre del Área:</label>
+          <input type="text" id="modal-area-nombre" required placeholder="Ej. Laboratorio" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+        </div>
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-700 bg-slate-900/60 cursor-pointer">
+          <input type="checkbox" id="modal-area-sin-calidad" class="mt-0.5 w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
+          <span class="text-xs text-slate-300">
+            <span class="font-semibold text-white">No aplica "Liberado por calidad" (N/A)</span><br>
+            <span class="text-slate-400">Sus equipos solo llevan el check de Conversión y llegan al 100% con él.</span>
+          </span>
+        </label>
+        <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
+          <button type="button" onclick="closeAreaModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold rounded-lg">Guardar Área</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPT LÓGICA PRINCIPAL JS -->
+  <script>
+    // =====================================================================
+    // CONEXIÓN CON GOOGLE SHEETS (Apps Script)
+    // Si la página se abre desde el enlace de Apps Script, todo se guarda en la hoja
+    // y se comparte entre usuarios. Si se abre como archivo suelto, usa el navegador (modo local).
+    // =====================================================================
+    const Nube = {
+      activa: typeof google !== 'undefined' && !!(google.script && google.script.run),
+      offsetMs: 0,   // diferencia entre el reloj del servidor y el de este equipo
+      pendientes: 0, // escrituras en camino
+      version: 0,    // sube con cada escritura local (para descartar lecturas que quedaron viejas)
+      llamar(accion, datos) {
+        return new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(txt => {
+              let r;
+              try { r = JSON.parse(txt); } catch (e) { return reject(new Error('Respuesta inválida del servidor')); }
+              if (r.ok) resolve(r.data); else reject(new Error(r.error));
+            })
+            .withFailureHandler(err => reject(new Error(err && err.message ? err.message : String(err))))
+            .api(accion, JSON.stringify(datos || {}));
+        });
+      },
+      // Escritura: pausa la lectura periódica mientras viaja y refresca al terminar
+      escribir(accion, datos) {
+        if (!Nube.activa) return Promise.resolve();
+        marcarSeccionesModificadas(SECCIONES_POR_ACCION[accion]);
+        Nube.pendientes++;
+        return Nube.llamar(accion, datos)
+          .then(() => { Nube.pendientes--; programarSincronizacion(700); })
+          .catch(err => { Nube.pendientes--; estadoNube('error', err.message); avisarErrorNube(err.message); });
+      }
+    };
+
+    // Secciones del estado que cambia cada acción: se vuelven a leer del servidor en la siguiente sincronización
+    const SECCIONES_POR_ACCION = {
+      setMatriz: ['matriz'],
+      addResult: ['conversiones', 'diseno'],
+      finalizeConversion: ['conversiones', 'conversion'],
+      finalizeActive: ['diseno', 'enCurso'],
+      saveActive: ['enCurso'], removeActive: ['enCurso'], toggleActiveCheck: ['enCurso'],
+      startConversion: ['conversion'], patchConversion: ['conversion'], setConversionCheck: ['conversion'],
+      deleteResult: ['conversiones', 'diseno']
+    };
+    function marcarSeccionesModificadas(secciones) {
+      Nube.version++;
+      (secciones || []).forEach(k => { delete ultimoEstado[k]; });
+    }
+
+    // Hora actual alineada con el servidor (así todos ven el mismo cronómetro aunque sus relojes difieran)
+    function ahora() { return Date.now() + Nube.offsetMs; }
+
+    // Id único para registros y cambios creados por distintas personas
+    function idUnico() { return Date.now() * 100 + Math.floor(Math.random() * 100); }
+
+    function estadoNube(tipo, mensaje) {
+      const el = document.getElementById('estado-nube');
+      if (!el) return;
+      if (tipo === 'ok') {
+        el.className = 'text-xs text-emerald-400';
+        el.innerHTML = `<i class="fa-solid fa-cloud mr-1"></i>Google Sheets · ${new Date().toLocaleTimeString()}`;
+      } else if (tipo === 'error') {
+        el.className = 'text-xs text-rose-400';
+        el.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i>Sin conexión: ${mensaje || ''}`;
+      } else {
+        el.className = 'text-xs text-slate-500';
+        el.innerHTML = '<i class="fa-solid fa-hard-drive mr-1"></i>Modo local (sin Google Sheets)';
+      }
+    }
+
+    let ultimoAvisoNube = 0;
+    function avisarErrorNube(mensaje) {
+      if (Date.now() - ultimoAvisoNube < 30000) return; // no repetir el aviso
+      ultimoAvisoNube = Date.now();
+      alert('⚠️ No se pudo guardar en Google Sheets: ' + mensaje + '\nLos cambios se volverán a leer del servidor en unos segundos.');
+    }
+
+    const ultimoEstado = {};  // JSON de lo último aplicado por sección (evita repintar sin cambios)
+    let sincronizando = false;
+    let temporizadorSync = null;
+    let matrizSembrada = false;
+
+    function programarSincronizacion(ms) {
+      clearTimeout(temporizadorSync);
+      temporizadorSync = setTimeout(sincronizar, ms);
+    }
+
+    function ocultarOverlayNube() {
+      const o = document.getElementById('overlay-nube');
+      if (o) o.classList.add('hidden');
+    }
+
+    async function sincronizar() {
+      if (!Nube.activa || sincronizando || Nube.pendientes > 0) return;
+      sincronizando = true;
+      try {
+        const v0 = Nube.version;
+        const t0 = Date.now();
+        const est = await Nube.llamar('getAll');
+        const t1 = Date.now();
+        // Si hubo una escritura mientras llegaba la respuesta, esta lectura quedó vieja: se descarta y se lee de nuevo
+        if (Nube.pendientes > 0 || Nube.version !== v0) { programarSincronizacion(1000); return; }
+        Nube.offsetMs = est.serverNow + (t1 - t0) / 2 - t1;
+        aplicarEstadoRemoto(est);
+        estadoNube('ok');
+      } catch (err) {
+        estadoNube('error', err.message);
+      } finally {
+        sincronizando = false;
+        ocultarOverlayNube();
+      }
+    }
+
+    function aplicarEstadoRemoto(est) {
+      const cambio = (clave, valor) => {
+        const j = JSON.stringify(valor);
+        if (ultimoEstado[clave] === j) return false;
+        ultimoEstado[clave] = j;
+        return true;
+      };
+
+      // Matriz (áreas, equipos, actividades de C/Diseño y opción N/A de calidad)
+      if (est.matriz) {
+        if (cambio('matriz', est.matriz)) {
+          const m = est.matriz;
+          if (Array.isArray(m.areas) && Array.isArray(m.equipos)) { areasLista = m.areas; matrizSMED = m.equipos; }
+          if (Array.isArray(m.actividades)) actividadesDiseno = m.actividades;
+          if (Array.isArray(m.sinCalidad)) areasSinCalidad = m.sinCalidad;
+          refrescarMatrizUI();
+        }
+      } else if (!matrizSembrada) {
+        matrizSembrada = true; // hoja vacía: se sube la matriz inicial una sola vez
+        guardarMatriz();
+      }
+
+      // Conversión en curso (config, checks y cronómetro)
+      if (cambio('conversion', est.conversion)) aplicarConversionRemota(est.conversion);
+
+      // Cambios de diseño en curso
+      if (cambio('enCurso', est.enCurso)) {
+        cambiosActivos = est.enCurso;
+        renderCambiosDiseno();
+      }
+
+      // Resultados finalizados
+      let repintarIndicadores = false;
+      if (cambio('conversiones', est.conversiones)) { registroConversion = est.conversiones; repintarIndicadores = true; }
+      if (cambio('diseno', est.diseno)) { registroDiseno = est.diseno; renderRegistroDiseno(); repintarIndicadores = true; }
+      if (repintarIndicadores) renderIndicadores();
+    }
+
+    function refrescarMatrizUI() {
+      const filtro = document.getElementById('filter-area-select').value;
+      poblarAreas();
+      if (filtro === 'TODAS' || areasLista.includes(filtro)) document.getElementById('filter-area-select').value = filtro;
+      renderMatrizEditor();
+      renderActividadesDiseno();
+      ejecutarGeneracionChecklist();
+    }
+
+    function sincronizarCambio(c) {
+      if (Nube.activa) Nube.escribir('saveActive', { change: c }); else guardarCambiosActivos();
+    }
+    function sincronizarQuitarCambio(id) {
+      if (Nube.activa) Nube.escribir('removeActive', { id }); else guardarCambiosActivos();
+    }
+
+    // --- 1. ÁREAS Y EQUIPOS (fuente única para filtros, modal y matriz) ---
+    const areasEquipos = {
+      'Front End': ['Cupper', 'BM11', 'BM12', 'BM13', 'BM14', 'BM15', 'BM16', 'BM17'],
+      'Área química': ['Lavadora'],
+      'Printer': ['UV', 'Printer'],
+      'Transportes': ['Transportes Front', 'Transportes lavadoras', 'Transportes Back'],
+      'Back End': ['Espreadoras', 'Necker', 'Paletizado']
+    };
+
+    // --- 1B. MATRIZ: LISTA DE EQUIPOS POR ÁREA (sin tareas ni cotas) ---
+    let areasLista = Object.keys(areasEquipos); // áreas (editables desde la Matriz)
+    let areasSinCalidad = ['Transportes'];      // áreas donde "Liberado por calidad" es N/A (editable en cada área)
+    let matrizSMED = Object.entries(areasEquipos).flatMap(([area, equipos]) => equipos.map(equipo => ({ area, equipo })))
+      .map((item, i) => ({ id: i + 1, ...item }));
+
+    // Opciones de formato dinámicas según Tipo de Cambio
+    const opcionesFormatos = {
+      'Altura': ['12 Oz', '16 Oz'],
+      'Diámetro y altura': ['12 Oz', '16 Oz', '8 Oz lean']
+    };
+
+    // Estado del Checklist Activo
+    let currentChecklistState = [];
+    let currentConfig = {
+      tipoCambio: 'Altura',
+      formatoOrigen: '12 Oz',
+      formatoDestino: '16 Oz',
+      tecnico: 'Ing. Carlos Mendoza',
+      objetivo: null,
+      horaInicio: null
+    };
+    // Estado compartido de la conversión en curso: checks por equipo y cronómetro (por marcas de tiempo)
+    let convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
+    function configConversionVacia() {
+      return { tipoCambio: 'Altura', formatoOrigen: '12 Oz', formatoDestino: '16 Oz', tecnico: 'Ing. Carlos Mendoza', objetivo: null, horaInicio: null };
+    }
+    // Objetivo de tiempo (hh:mm) recordado por cada tipo de cambio
+    const objetivosConversion = {};
+
+    // Lista de actividades de SMED C/Diseño (se administra desde la pestaña MATRIZ)
+    let actividadesDiseno = [];
+
+    // Registro de resultados de SMED Conversión (se muestra en Indicadores)
+    let registroConversion = [];
+
+    // Persistencia en el navegador (si no está disponible, trabaja solo en memoria)
+    const STORAGE_KEYS = { conv: 'smed_registro_conversion', dis: 'smed_registro_diseno' };
+    function guardarRegistros() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.conv, JSON.stringify(registroConversion));
+        localStorage.setItem(STORAGE_KEYS.dis, JSON.stringify(registroDiseno));
+      } catch (e) { /* almacenamiento no disponible */ }
+    }
+    // Matriz (áreas, equipos y actividades de C/Diseño) también se conserva en el navegador
+    function guardarMatriz() {
+      const valor = { areas: areasLista, equipos: matrizSMED, actividades: actividadesDiseno, sinCalidad: areasSinCalidad };
+      if (Nube.activa) { Nube.escribir('setMatriz', { value: valor }); return; }
+      try {
+        localStorage.setItem('smed_matriz', JSON.stringify(valor));
+      } catch (e) { /* almacenamiento no disponible */ }
+    }
+    function cargarMatriz() {
+      try {
+        const m = JSON.parse(localStorage.getItem('smed_matriz'));
+        if (m && Array.isArray(m.areas) && Array.isArray(m.equipos)) { areasLista = m.areas; matrizSMED = m.equipos; }
+        if (m && Array.isArray(m.actividades)) actividadesDiseno = m.actividades;
+        if (m && Array.isArray(m.sinCalidad)) areasSinCalidad = m.sinCalidad;
+      } catch (e) { /* almacenamiento no disponible o datos inválidos */ }
+    }
+    function cargarRegistros() {
+      try {
+        registroConversion = JSON.parse(localStorage.getItem(STORAGE_KEYS.conv)) || [];
+        registroDiseno = JSON.parse(localStorage.getItem(STORAGE_KEYS.dis)) || [];
+      } catch (e) { /* almacenamiento no disponible o datos inválidos */ }
+      // Registros guardados antes de existir el borrado no tienen id: se les asigna uno
+      [registroConversion, registroDiseno].forEach(lista => {
+        let max = lista.reduce((m, r) => Math.max(m, r.id || 0), 0);
+        lista.forEach(r => { if (!r.id) r.id = ++max; });
+      });
+    }
+
+    // Segundos mostrados en el cronómetro de conversión (derivados de convEstado)
+    let timerSeconds = 0;
+
+    // --- 2. INICIALIZACIÓN AL CARGAR LA PÁGINA ---
+    window.onload = function() {
+      // Con Google Sheets los datos llegan del servidor; en modo local se leen del navegador
+      if (Nube.activa) {
+        document.getElementById('overlay-nube').classList.remove('hidden');
+        setTimeout(ocultarOverlayNube, 15000); // por si el servidor tarda o falla
+      } else {
+        cargarMatriz();
+        cargarCambiosActivos();
+      }
+      setInterval(tickCambiosDiseno, 1000);
+      setInterval(tickTimerConversion, 1000);
+
+      // Actualizar Reloj Superior
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // Fecha y hora de inicio por defecto = actuales (editables)
+      document.getElementById('input-fecha-conversion').value = fechaLocalHoy();
+      const ahora = new Date();
+      document.getElementById('input-hora-inicio').value =
+        `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+
+      // Áreas y equipos (filtro del checklist y modal de la matriz)
+      poblarAreas();
+
+      // Cargar Opciones de Formato
+      actualizarDesplegablesFormatos();
+
+      // Generar Checklist por primera vez con datos por defecto
+      ejecutarGeneracionChecklist();
+
+      // Renderizar Matriz Editable
+      renderMatrizEditor();
+      renderActividadesDiseno();
+
+      // Cargar resultados guardados y pintar tablas e indicadores
+      if (!Nube.activa) cargarRegistros();
+      renderRegistroDiseno();
+      renderIndicadores();
+
+      if (Nube.activa) {
+        sincronizar(); // primera lectura inmediata
+        setInterval(() => { if (!document.hidden) sincronizar(); }, 8000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) sincronizar(); });
+      } else {
+        estadoNube('local');
+      }
+    };
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock-display').innerText = now.toLocaleTimeString();
+    }
+
+    // --- 3. NAVEGACIÓN ENTRE PESTAÑAS ---
+    function switchTab(tabId) {
+      const tabs = ['smed-execution', 'smed-diseno', 'matriz-editor', 'metrics-dashboard'];
+      tabs.forEach(id => {
+        const section = document.getElementById(`tab-${id}`);
+        const btn = document.getElementById(`tab-btn-${id}`);
+        if (id === tabId) {
+          section.classList.remove('hidden');
+          if (id === 'smed-diseno') section.classList.add('flex');
+          btn.classList.remove('text-slate-300', 'hover:bg-slate-800');
+          btn.classList.add('bg-brand-blue', 'text-white');
+        } else {
+          section.classList.add('hidden');
+          if (id === 'smed-diseno') section.classList.remove('flex');
+          btn.classList.add('text-slate-300', 'hover:bg-slate-800');
+          btn.classList.remove('bg-brand-blue', 'text-white');
+        }
+      });
+      if (tabId === 'metrics-dashboard') renderIndicadores();
+    }
+
+    // --- 4. LÓGICA DE FORMULARIO DINÁMICO SMED ---
+    function actualizarDesplegablesFormatos() {
+      const tipo = document.getElementById('select-tipo-cambio').value;
+      const origenSelect = document.getElementById('select-formato-origen');
+      const destinoSelect = document.getElementById('select-formato-destino');
+
+      const opciones = opcionesFormatos[tipo] || ['12 Oz', '16 Oz'];
+
+      origenSelect.innerHTML = '';
+      destinoSelect.innerHTML = '';
+
+      opciones.forEach(fmt => {
+        const opt1 = document.createElement('option');
+        opt1.value = fmt; opt1.innerText = fmt;
+        origenSelect.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = fmt; opt2.innerText = fmt;
+        destinoSelect.appendChild(opt2);
+      });
+
+      // Seleccionar por defecto opciones distintas
+      if (destinoSelect.options.length > 1) {
+        destinoSelect.selectedIndex = 1;
+      }
+    }
+
+    function generarChecklistSMED(e) {
+      e.preventDefault();
+      
+      const tipo = document.getElementById('select-tipo-cambio').value;
+      const origen = document.getElementById('select-formato-origen').value;
+      const destino = document.getElementById('select-formato-destino').value;
+      const tecnico = document.getElementById('input-tecnico-responsable').value.trim();
+      const objetivo = document.getElementById('input-objetivo-conversion').value;
+
+      if (origen === destino) {
+        alert('⚠️ El Formato Origen y Destino deben ser diferentes.');
+        return;
+      }
+
+      if (!/^\d{2}:[0-5]\d$/.test(objetivo)) {
+        alert('⚠️ El Objetivo de tiempo debe tener formato hh:mm (ej. 01:30).');
+        return;
+      }
+
+      // Fecha y hora de inicio elegidas por el usuario
+      const fecha = document.getElementById('input-fecha-conversion').value;
+      const horaInicio = document.getElementById('input-hora-inicio').value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        alert('⚠️ Selecciona la Fecha del cambio.');
+        return;
+      }
+      if (!/^\d{2}:\d{2}$/.test(horaInicio)) {
+        alert('⚠️ Ingresa la Hora de inicio del cambio.');
+        return;
+      }
+      const [y, mo, d] = fecha.split('-').map(Number);
+      const [hh, mm] = horaInicio.split(':').map(Number);
+      const inicio = new Date(y, mo - 1, d, hh, mm, 0, 0);
+      if (inicio.getTime() > ahora()) {
+        alert(`⚠️ La fecha y hora de inicio (${fechaADisplay(fecha)} ${horaInicio}) no pueden ser posteriores a la fecha y hora actual.`);
+        return;
+      }
+
+      currentConfig = { tipoCambio: tipo, formatoOrigen: origen, formatoDestino: destino, tecnico: tecnico, objetivo: objetivo, fecha: fecha, horaInicio: horaInicio };
+
+      // El cronómetro arranca desde el tiempo ya transcurrido desde la hora de inicio y el checklist inicia limpio
+      convEstado = { checks: {}, acumuladoMs: Math.max(0, ahora() - inicio.getTime()), reanudadoTs: ahora() };
+      Nube.escribir('startConversion', { doc: { config: currentConfig, checks: {}, acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs } });
+
+      ejecutarGeneracionChecklist();
+      actualizarBotonTimerConversion();
+      tickTimerConversion();
+    }
+
+    function ejecutarGeneracionChecklist() {
+      // Cada equipo lleva 2 checks (Conversión y Liberado por calidad) guardados en convEstado.checks
+      currentChecklistState = matrizSMED.map(item => {
+        const chk = convEstado.checks[item.id] || {};
+        return { ...item, conversion: !!chk.c, calidad: !!chk.q };
+      });
+
+      // Actualizar Encabezado Subtítulo
+      document.getElementById('sub-ruta').innerText = `${currentConfig.formatoOrigen} ➔ ${currentConfig.formatoDestino}`;
+      document.getElementById('sub-tipo').innerText = currentConfig.tipoCambio;
+      document.getElementById('sub-resp').innerText = currentConfig.tecnico;
+      document.getElementById('sub-objetivo').innerText = currentConfig.objetivo || '--:--';
+      document.getElementById('sub-inicio').innerText = currentConfig.horaInicio || '--:--';
+      document.getElementById('sub-fecha').innerText = currentConfig.fecha ? fechaADisplay(currentConfig.fecha) : '--';
+      document.getElementById('target-smed-time').innerText = currentConfig.objetivo
+        ? `Objetivo ${objetivoATexto(currentConfig.objetivo)}`
+        : 'Objetivo sin definir';
+
+      renderChecklist();
+    }
+
+    // --- 5. RENDERIZADO Y CÁLCULOS DEL CHECKLIST ---
+    // Estatus de un equipo: 0% / 50% / 100% (100% = Conversión + Liberado por calidad)
+    // En estas áreas no aplica "Liberado por calidad" (se muestra N/A) y basta Conversión para el 100%
+    function sinLiberacionCalidad(area) {
+      return areasSinCalidad.includes(area);
+    }
+
+    function porcentajeEquipo(e) {
+      if (sinLiberacionCalidad(e.area)) return e.conversion ? 100 : 0;
+      return (e.conversion ? 50 : 0) + (e.calidad ? 50 : 0);
+    }
+
+    function badgeEstatus(pct) {
+      if (pct === 100) return '<span class="inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-600/20 text-emerald-400 border border-emerald-500/40"><i class="fa-solid fa-circle-check mr-1"></i>100%</span>';
+      if (pct === 50) return '<span class="inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-amber-600/20 text-amber-400 border border-amber-500/40">50%</span>';
+      return '<span class="inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">0%</span>';
+    }
+
+    function renderChecklist() {
+      const tbody = document.getElementById('checklist-table-body');
+      const filterArea = document.getElementById('filter-area-select').value;
+      tbody.innerHTML = '';
+
+      const areasMostrar = areasLista.filter(a => filterArea === 'TODAS' || a === filterArea);
+      let hayEquipos = false;
+
+      areasMostrar.forEach(area => {
+        const equipos = currentChecklistState.filter(e => e.area === area);
+        if (equipos.length === 0) return;
+        hayEquipos = true;
+
+        const listos = equipos.filter(e => porcentajeEquipo(e) === 100).length;
+        const pctArea = Math.round(equipos.reduce((acc, e) => acc + porcentajeEquipo(e), 0) / equipos.length);
+
+        // Encabezado del área
+        const trArea = document.createElement('tr');
+        trArea.className = 'bg-slate-900/80';
+        trArea.innerHTML = `
+          <td colspan="3" class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-brand-lightBlue">${area}</td>
+          <td class="px-3 py-2 text-center text-[11px] font-semibold text-slate-300">${listos}/${equipos.length} equipos · ${pctArea}%</td>
+        `;
+        tbody.appendChild(trArea);
+
+        // Equipos del área
+        equipos.forEach(e => {
+          const pct = porcentajeEquipo(e);
+          const tr = document.createElement('tr');
+          tr.className = pct === 100 ? 'bg-emerald-950/20 hover:bg-emerald-900/30 transition' : 'hover:bg-slate-800/50 transition';
+          tr.innerHTML = `
+            <td class="p-3 pl-6 font-medium ${pct === 100 ? 'text-emerald-300' : 'text-slate-200'}">${e.equipo}</td>
+            <td class="p-3 text-center">
+              <input type="checkbox" ${e.conversion ? 'checked' : ''} onchange="toggleCheckEquipo(${e.id}, 'conversion')"
+                class="w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
+            </td>
+            <td class="p-3 text-center">
+              ${sinLiberacionCalidad(e.area)
+                ? '<span class="text-xs font-bold text-slate-500">N/A</span>'
+                : `<input type="checkbox" ${e.calidad ? 'checked' : ''} onchange="toggleCheckEquipo(${e.id}, 'calidad')"
+                class="w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">`}
+            </td>
+            <td class="p-3 text-center">${badgeEstatus(pct)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+
+      if (!hayEquipos) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500 italic">No hay equipos registrados para esta área.</td></tr>`;
+      }
+
+      actualizarMétricasAvance();
+    }
+
+    function toggleCheckEquipo(id, campo) {
+      const equipo = currentChecklistState.find(e => e.id === id);
+      if (!equipo) return;
+      equipo[campo] = !equipo[campo];
+      const clave = campo === 'conversion' ? 'c' : 'q';
+      convEstado.checks[id] = { ...(convEstado.checks[id] || {}), [clave]: equipo[campo] };
+      Nube.escribir('setConversionCheck', { id, campo: clave, valor: equipo[campo] });
+      renderChecklist();
+    }
+
+    function actualizarMétricasAvance() {
+      const total = currentChecklistState.length;
+      const completadas = currentChecklistState.filter(e => porcentajeEquipo(e) === 100).length;
+      const pendientes = total - completadas;
+      // Avance general: promedio del % de cada equipo (Transportes solo lleva Conversión)
+      const sumaPct = currentChecklistState.reduce((acc, e) => acc + porcentajeEquipo(e), 0);
+      const porcentaje = total > 0 ? (sumaPct / total).toFixed(1) : 0;
+
+      document.getElementById('count-completed').innerText = completadas;
+      document.getElementById('count-pending').innerText = pendientes;
+      document.getElementById('count-total').innerText = total;
+
+      document.getElementById('text-percentage').innerText = `${porcentaje}%`;
+      document.getElementById('progress-bar-fill').style.width = `${porcentaje}%`;
+    }
+
+    // --- 6. CRONÓMETRO SMED ---
+    // Tiempo transcurrido = tiempo acumulado + tramo actual (si está corriendo). Todo con la hora del servidor.
+    function segundosConversion() {
+      const ms = convEstado.acumuladoMs + (convEstado.reanudadoTs ? ahora() - convEstado.reanudadoTs : 0);
+      return Math.max(0, Math.floor(ms / 1000));
+    }
+
+    function actualizarBotonTimerConversion() {
+      const btn = document.getElementById('btn-timer-toggle');
+      if (convEstado.reanudadoTs) {
+        btn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pausar`;
+        btn.className = "bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded text-xs font-bold transition";
+      } else {
+        btn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> ${convEstado.acumuladoMs > 0 ? 'Reanudar' : 'Iniciar'}`;
+        btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold transition";
+      }
+    }
+
+    function persistirTimerConversion() {
+      Nube.escribir('patchConversion', { patch: { acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs } });
+    }
+
+    function toggleTimer() {
+      if (convEstado.reanudadoTs) { // pausar: guarda el tramo corrido
+        convEstado.acumuladoMs += ahora() - convEstado.reanudadoTs;
+        convEstado.reanudadoTs = null;
+      } else {                      // iniciar / reanudar
+        convEstado.reanudadoTs = ahora();
+      }
+      actualizarBotonTimerConversion();
+      tickTimerConversion();
+      persistirTimerConversion();
+    }
+
+    function resetTimer() {
+      convEstado.acumuladoMs = 0;
+      convEstado.reanudadoTs = null;
+      actualizarBotonTimerConversion();
+      tickTimerConversion();
+      persistirTimerConversion();
+    }
+
+    function tickTimerConversion() {
+      timerSeconds = segundosConversion();
+      document.getElementById('timer-display').innerText = formatoTiempo(timerSeconds);
+      actualizarColorTimerConversion();
+    }
+
+    // Aplica lo que llegó del servidor para la conversión en curso
+    function aplicarConversionRemota(doc) {
+      currentConfig = doc && doc.config ? doc.config : configConversionVacia();
+      convEstado = {
+        checks: (doc && doc.checks) || {},
+        acumuladoMs: (doc && doc.acumuladoMs) || 0,
+        reanudadoTs: (doc && doc.reanudadoTs) || null
+      };
+      ejecutarGeneracionChecklist();
+      actualizarBotonTimerConversion();
+      tickTimerConversion();
+    }
+
+    // Verde dentro del objetivo, rojo al sobrepasarlo
+    function actualizarColorTimerConversion() {
+      const display = document.getElementById('timer-display');
+      const excedido = currentConfig.objetivo && timerSeconds > objetivoASegundos(currentConfig.objetivo);
+      display.classList.toggle('text-rose-500', !!excedido);
+      display.classList.toggle('text-emerald-400', !excedido);
+    }
+
+    // Formatea hh:mm mientras se escribe y lo recuerda por tipo de cambio
+    function formatearObjetivoConversion(input) {
+      let digits = input.value.replace(/\D/g, '').slice(0, 4);
+      input.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+      objetivosConversion[document.getElementById('select-tipo-cambio').value] = input.value;
+    }
+
+    function cargarObjetivoConversion() {
+      const tipo = document.getElementById('select-tipo-cambio').value;
+      document.getElementById('input-objetivo-conversion').value = objetivosConversion[tipo] || '';
+    }
+
+    function guardarRegistroSMED() {
+      if (!currentConfig.objetivo) {
+        alert('⚠️ Primero captura el Objetivo de tiempo y presiona "Iniciar Conversión".');
+        return;
+      }
+
+      const completadas = currentChecklistState.filter(e => porcentajeEquipo(e) === 100).length;
+      const total = currentChecklistState.length;
+      
+      if (completadas < total) {
+        if (!confirm(`⚠️ Aún quedan ${total - completadas} equipos sin llegar al 100% (Conversión + Liberado por calidad). ¿Deseas finalizar el registro de cambio SMED?`)) {
+          return;
+        }
+      }
+
+      const seg = segundosConversion();
+      const diff = objetivoASegundos(currentConfig.objetivo) - seg; // + ganado, - excedido
+      const textoDif = diff > 0 ? `Ganado ${formatoTiempo(diff)}`
+                     : diff < 0 ? `Excedido ${formatoTiempo(-diff)}`
+                     : 'En objetivo';
+      const horaFin = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const cfg = currentConfig;
+
+      const registro = {
+        id: idUnico(),
+        fecha: cfg.fecha,
+        tipoCambio: cfg.tipoCambio,
+        formato: `${cfg.formatoOrigen} ➔ ${cfg.formatoDestino}`,
+        responsable: cfg.tecnico,
+        horaInicio: cfg.horaInicio,
+        horaFin: horaFin,
+        equipos100: completadas,
+        totalEquipos: total,
+        objetivo: cfg.objetivo,
+        segundos: seg,
+        tiempo: formatoTiempo(seg),
+        diff: diff,
+        enMeta: diff >= 0,
+        textoDif: textoDif
+      };
+      registroConversion.push(registro);
+      if (Nube.activa) Nube.escribir('finalizeConversion', { record: registro }); // guarda el resultado y limpia la conversión en curso
+      else guardarRegistros();
+
+      // La conversión queda lista para la siguiente
+      convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
+      currentConfig = configConversionVacia();
+      ejecutarGeneracionChecklist();
+      actualizarBotonTimerConversion();
+      tickTimerConversion();
+      renderIndicadores();
+
+      alert(`✅ Evento SMED finalizado exitosamente.\nTiempo Total: ${formatoTiempo(seg)}\nFecha: ${fechaADisplay(cfg.fecha)}\nInicio: ${cfg.horaInicio} | Fin: ${horaFin}\nFormato: ${cfg.formatoOrigen} -> ${cfg.formatoDestino}\nObjetivo: ${cfg.objetivo} (${textoDif})\nResponsable: ${cfg.tecnico}`);
+    }
+
+
+    // --- 6B. SMED C/DISEÑO: CRONÓMETRO Y REGISTRO ---
+    // Cambios de diseño en curso: puede haber varios a la vez (p. ej. Impresora 2A y 2B).
+    // Cada uno guarda su propio tiempo acumulado, así que su cronómetro no se pierde al iniciar otro.
+    let cambiosActivos = [];
+    let registroDiseno = [];
+    const detallesCambioAbiertos = new Set(); // cambios con su checklist desplegado
+
+    function formatoTiempo(total) {
+      const hrs = String(Math.floor(total / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+      const secs = String(total % 60).padStart(2, '0');
+      return `${hrs}:${mins}:${secs}`;
+    }
+
+    // Fecha (local) en formato yyyy-mm-dd para el input date
+    function fechaLocalHoy() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function fechaADisplay(iso) {
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    document.getElementById('diseno-fecha').value = fechaLocalHoy();
+
+    // Impresoras disponibles según la línea seleccionada
+    const impresorasPorLinea = {
+      'Línea 1': ['Impresora 1'],
+      'Línea 2': ['Impresora 2A', 'Impresora 2B']
+    };
+    // Objetivo de tiempo (hh:mm) recordado por cada impresora
+    const objetivosImpresora = {};
+
+    function actualizarImpresoras() {
+      const linea = document.getElementById('diseno-linea').value;
+      const select = document.getElementById('diseno-impresora');
+      select.innerHTML = '';
+      (impresorasPorLinea[linea] || []).forEach(imp => {
+        const opt = document.createElement('option');
+        opt.value = imp; opt.innerText = imp;
+        select.appendChild(opt);
+      });
+      // Línea 1 -> Impresora 1 por defecto; Línea 2 -> primera opción (2A)
+      select.selectedIndex = 0;
+      cargarObjetivoImpresora();
+    }
+
+    function cargarObjetivoImpresora() {
+      const imp = document.getElementById('diseno-impresora').value;
+      document.getElementById('diseno-objetivo').value = objetivosImpresora[imp] || '';
+    }
+
+    function formatearObjetivo(input) {
+      let digits = input.value.replace(/\D/g, '').slice(0, 4);
+      input.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+      objetivosImpresora[document.getElementById('diseno-impresora').value] = input.value;
+    }
+
+    // "00:20" -> "20 minutos", "01:30" -> "1 hora 30 minutos"
+    function objetivoATexto(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      const partes = [];
+      if (h > 0) partes.push(`${h} ${h === 1 ? 'hora' : 'horas'}`);
+      if (m > 0 || h === 0) partes.push(`${m} ${m === 1 ? 'minuto' : 'minutos'}`);
+      return partes.join(' ');
+    }
+
+    function objetivoASegundos(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 3600 + m * 60;
+    }
+
+    // --- Cambios de diseño en curso ---
+    function guardarCambiosActivos() {
+      try { localStorage.setItem('smed_cambios_activos', JSON.stringify(cambiosActivos)); } catch (e) { /* almacenamiento no disponible */ }
+    }
+    function cargarCambiosActivos() {
+      try {
+        const c = JSON.parse(localStorage.getItem('smed_cambios_activos'));
+        if (Array.isArray(c)) cambiosActivos = c;
+      } catch (e) { /* almacenamiento no disponible o datos inválidos */ }
+    }
+
+    // Segundos transcurridos de un cambio (acumulado + tramo actual si está corriendo)
+    function segundosCambio(c) {
+      const ms = c.acumuladoMs + (c.reanudadoTs ? ahora() - c.reanudadoTs : 0);
+      return Math.max(0, Math.floor(ms / 1000));
+    }
+
+    // Actualiza solo el reloj de cada tarjeta (verde dentro del objetivo, rojo al excederlo)
+    function tickCambiosDiseno() {
+      cambiosActivos.forEach(c => {
+        const el = document.getElementById(`cd-timer-${c.id}`);
+        if (!el) return;
+        const seg = segundosCambio(c);
+        el.innerText = formatoTiempo(seg);
+        const excedido = seg > objetivoASegundos(c.objetivo);
+        el.classList.toggle('text-rose-500', excedido);
+        el.classList.toggle('text-emerald-400', !excedido);
+      });
+    }
+
+    // El checklist previo se oculta al iniciar un cambio (para dar espacio a los cronómetros)
+    // y vuelve a aparecer al querer iniciar otro. Sin cambios en curso siempre está visible.
+    let mostrarChecklistPrevio = false;
+    function checklistPrevioVisible() {
+      return cambiosActivos.length === 0 || mostrarChecklistPrevio;
+    }
+
+    function revelarChecklistPrevio(e) {
+      if (e && e.target && e.target.tagName === 'BUTTON') return; // el botón "Iniciar" no lo revela
+      if (!mostrarChecklistPrevio) {
+        mostrarChecklistPrevio = true;
+        renderCambiosDiseno();
+      }
+    }
+
+    function iniciarOtroCambio() {
+      mostrarChecklistPrevio = true;
+      renderCambiosDiseno();
+      document.getElementById('diseno-checklist-previo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('diseno-actual').focus();
+    }
+
+    function renderCambiosDiseno() {
+      const cont = document.getElementById('diseno-cambios-activos');
+      cont.innerHTML = '';
+
+      const checklistVisible = checklistPrevioVisible();
+      const cronoGrande = !checklistVisible; // con el checklist oculto, el cronómetro usa ese espacio
+      document.getElementById('diseno-checklist-previo').classList.toggle('hidden', !checklistVisible);
+      document.getElementById('btn-nuevo-cambio').classList.toggle('hidden', checklistVisible);
+      document.getElementById('diseno-activos-count').innerText = cambiosActivos.length;
+
+      if (cambiosActivos.length === 0) {
+        cont.innerHTML = '<p class="text-sm text-slate-500 italic text-center py-6 border border-dashed border-slate-700 rounded-xl">No hay cambios de diseño en curso. Captura los datos y presiona "Iniciar Cambio de Diseño".</p>';
+        return;
+      }
+
+      cambiosActivos.forEach(c => {
+        const seg = segundosCambio(c);
+        const excedido = seg > objetivoASegundos(c.objetivo);
+        const pausado = !c.reanudadoTs;
+        const total = actividadesDiseno.length;
+        const hechas = actividadesDiseno.filter(a => c.checks[a.id]).length;
+
+        const items = total === 0
+          ? '<p class="text-xs text-slate-500 italic py-1">No hay actividades registradas en MATRIZ ➔ SMED C/DISEÑO.</p>'
+          : actividadesDiseno.map(a => {
+              const ok = !!c.checks[a.id];
+              return `<label class="flex items-start gap-3 p-1.5 rounded-lg cursor-pointer transition ${ok ? 'bg-emerald-950/20' : 'hover:bg-slate-800/50'}">
+                <input type="checkbox" ${ok ? 'checked' : ''} onchange="toggleCheckCambio(${c.id}, ${a.id})" class="mt-0.5 w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
+                <span class="text-sm ${ok ? 'line-through text-slate-400' : 'text-slate-200'}">${a.actividad}</span>
+              </label>`;
+            }).join('');
+
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border border-slate-700 bg-slate-900/60 p-4';
+        card.innerHTML = `
+          <div class="flex flex-wrap justify-between items-start gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-white">
+                <span class="text-brand-lightBlue">${c.linea} · ${c.impresora}</span>
+                <span class="text-xs font-medium text-slate-400 ml-2">${c.presentacion}</span>
+              </p>
+              <p class="text-xs text-slate-400 mt-1">
+                Diseño: <span class="text-white font-medium">${c.disenoActual} ➔ ${c.disenoNuevo}</span> |
+                Fecha: <span class="text-white font-medium">${fechaADisplay(c.fecha)}</span> |
+                Resp: <span class="text-white font-medium">${c.responsable}</span> |
+                Grupo: <span class="text-white font-medium">${c.grupo}</span>
+              </p>
+            </div>
+            <div class="text-right">
+              <span id="cd-timer-${c.id}" class="font-mono ${cronoGrande ? 'text-5xl md:text-6xl' : 'text-2xl'} font-extrabold tracking-widest transition-colors ${excedido ? 'text-rose-500' : 'text-emerald-400'}">${formatoTiempo(seg)}</span>
+              <p class="${cronoGrande ? 'text-sm' : 'text-[11px]'} text-slate-400">Objetivo ${objetivoATexto(c.objetivo)}${pausado ? ' · <span class="text-amber-400 font-semibold">En pausa</span>' : ''}</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-3 no-print">
+            <button onclick="toggleCambioDiseno(${c.id})" class="${pausado ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'} text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
+              <i class="fa-solid ${pausado ? 'fa-play' : 'fa-pause'} mr-1"></i>${pausado ? 'Reanudar' : 'Pausar'}
+            </button>
+            <button onclick="abrirEdicionCambio(${c.id})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+              <i class="fa-solid fa-pen mr-1"></i>Editar
+            </button>
+            <button onclick="finalizarCambioDiseno(${c.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
+              <i class="fa-solid fa-floppy-disk mr-1"></i>Finalizar
+            </button>
+            <button onclick="descartarCambioDiseno(${c.id})" class="text-rose-400 hover:text-rose-300 px-2 py-1.5 text-xs transition" title="Descartar este cambio sin registrarlo">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+
+          <details class="mt-3" ${detallesCambioAbiertos.has(c.id) ? 'open' : ''} ontoggle="toggleDetalleCambio(${c.id}, this.open)">
+            <summary class="text-xs font-semibold text-slate-300 cursor-pointer select-none">Checklist de actividades: <span class="text-white">${hechas}/${total}</span></summary>
+            <div class="mt-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">${items}</div>
+          </details>
+        `;
+        cont.appendChild(card);
+      });
+    }
+
+    function toggleDetalleCambio(id, abierto) {
+      if (abierto) detallesCambioAbiertos.add(id); else detallesCambioAbiertos.delete(id);
+    }
+
+    function toggleCheckCambio(cambioId, actividadId) {
+      const c = cambiosActivos.find(x => x.id === cambioId);
+      if (!c) return;
+      if (c.checks[actividadId]) delete c.checks[actividadId]; else c.checks[actividadId] = true;
+      if (Nube.activa) Nube.escribir('toggleActiveCheck', { id: cambioId, actividadId }); else guardarCambiosActivos();
+      renderCambiosDiseno();
+    }
+
+    function toggleCambioDiseno(id) {
+      const c = cambiosActivos.find(x => x.id === id);
+      if (!c) return;
+      if (c.reanudadoTs) { // pausar: guarda el tramo corrido
+        c.acumuladoMs += ahora() - c.reanudadoTs;
+        c.reanudadoTs = null;
+      } else {            // reanudar
+        c.reanudadoTs = ahora();
+      }
+      sincronizarCambio(c);
+      renderCambiosDiseno();
+    }
+
+    function descartarCambioDiseno(id) {
+      const c = cambiosActivos.find(x => x.id === id);
+      if (!c) return;
+      if (!confirm(`¿Descartar el cambio de ${c.impresora} (${c.disenoActual} ➔ ${c.disenoNuevo}) sin registrarlo?`)) return;
+      cambiosActivos = cambiosActivos.filter(x => x.id !== id);
+      detallesCambioAbiertos.delete(id);
+      sincronizarQuitarCambio(id);
+      renderCambiosDiseno();
+    }
+
+    // Ya existe otro cambio en curso en la misma impresora
+    function impresoraOcupada(impresora, ignorarId = null) {
+      return cambiosActivos.find(c => c.impresora === impresora && c.id !== ignorarId);
+    }
+
+    function iniciarCambioDiseno(e) {
+      e.preventDefault();
+      const actual = document.getElementById('diseno-actual').value.trim();
+      const nuevo = document.getElementById('diseno-nuevo').value.trim();
+
+      if (actual.toLowerCase() === nuevo.toLowerCase()) {
+        alert('⚠️ El Diseño actual y el Diseño a ingresar deben ser diferentes.');
+        return;
+      }
+
+      const objetivo = document.getElementById('diseno-objetivo').value;
+      if (!/^\d{2}:[0-5]\d$/.test(objetivo)) {
+        alert('⚠️ El Objetivo de tiempo debe tener formato hh:mm (ej. 01:30).');
+        return;
+      }
+
+      const impresora = document.getElementById('diseno-impresora').value;
+      const ocupada = impresoraOcupada(impresora);
+      if (ocupada) {
+        alert(`⚠️ Ya hay un cambio de diseño en curso en ${impresora} (${ocupada.disenoActual} ➔ ${ocupada.disenoNuevo}). Finalízalo o descártalo antes de iniciar otro en la misma impresora.`);
+        return;
+      }
+
+      // Aviso si hay actividades del checklist sin realizar antes de iniciar
+      const pendientes = actividadesDiseno.filter(a => !checksDiseno[a.id]);
+      if (pendientes.length > 0) {
+        const lista = pendientes.slice(0, 5).map(a => `• ${a.actividad}`).join('\n') +
+          (pendientes.length > 5 ? `\n• ... y ${pendientes.length - 5} más` : '');
+        if (!confirm(`⚠️ Hay ${pendientes.length} actividad(es) del checklist sin realizar:\n\n${lista}\n\n¿Deseas iniciar el cambio de diseño de todas formas?`)) {
+          return;
+        }
+      }
+
+      const nuevoCambio = {
+        id: idUnico(),
+        fecha: document.getElementById('diseno-fecha').value,
+        linea: document.getElementById('diseno-linea').value,
+        presentacion: document.getElementById('diseno-presentacion').value,
+        impresora: impresora,
+        objetivo: objetivo,
+        disenoActual: actual,
+        disenoNuevo: nuevo,
+        responsable: document.getElementById('diseno-responsable').value.trim(),
+        grupo: document.getElementById('diseno-grupo').value,
+        acumuladoMs: 0,
+        reanudadoTs: ahora(), // el cronómetro inicia de inmediato
+        checks: { ...checksDiseno }
+      };
+      cambiosActivos.push(nuevoCambio);
+
+      // El checklist previo se limpia para el siguiente cambio y se liberan los diseños para capturar otro
+      checksDiseno = {};
+      renderChecklistDiseno();
+      document.getElementById('diseno-actual').value = '';
+      document.getElementById('diseno-nuevo').value = '';
+
+      mostrarChecklistPrevio = false; // se oculta para dar espacio al cronómetro
+      sincronizarCambio(nuevoCambio);
+      renderCambiosDiseno();
+    }
+
+    // --- Editar los datos de un cambio en curso (no toca su cronómetro) ---
+    let cambioEditandoId = null;
+
+    function soloFormatoHHMM(input) {
+      const digits = input.value.replace(/\D/g, '').slice(0, 4);
+      input.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+    }
+
+    function actualizarImpresorasEdicion(seleccion = null) {
+      const linea = document.getElementById('ed-linea').value;
+      const select = document.getElementById('ed-impresora');
+      const lista = impresorasPorLinea[linea] || [];
+      select.innerHTML = lista.map(i => `<option value="${i}">${i}</option>`).join('');
+      select.value = lista.includes(seleccion) ? seleccion : (lista[0] || '');
+    }
+
+    function abrirEdicionCambio(id) {
+      const c = cambiosActivos.find(x => x.id === id);
+      if (!c) return;
+      cambioEditandoId = id;
+      document.getElementById('ed-fecha').value = c.fecha;
+      document.getElementById('ed-objetivo').value = c.objetivo;
+      document.getElementById('ed-linea').value = c.linea;
+      actualizarImpresorasEdicion(c.impresora);
+      document.getElementById('ed-presentacion').value = c.presentacion;
+      document.getElementById('ed-grupo').value = c.grupo;
+      document.getElementById('ed-actual').value = c.disenoActual;
+      document.getElementById('ed-nuevo').value = c.disenoNuevo;
+      document.getElementById('ed-responsable').value = c.responsable;
+      document.getElementById('modal-editar-cambio').classList.remove('hidden');
+    }
+
+    function cerrarEdicionCambio() {
+      document.getElementById('modal-editar-cambio').classList.add('hidden');
+      cambioEditandoId = null;
+    }
+
+    function guardarEdicionCambio(e) {
+      e.preventDefault();
+      const c = cambiosActivos.find(x => x.id === cambioEditandoId);
+      if (!c) { cerrarEdicionCambio(); return; }
+
+      const actual = document.getElementById('ed-actual').value.trim();
+      const nuevo = document.getElementById('ed-nuevo').value.trim();
+      const objetivo = document.getElementById('ed-objetivo').value;
+      const impresora = document.getElementById('ed-impresora').value;
+
+      if (actual.toLowerCase() === nuevo.toLowerCase()) {
+        alert('⚠️ El Diseño actual y el Diseño a ingresar deben ser diferentes.');
+        return;
+      }
+      if (!/^\d{2}:[0-5]\d$/.test(objetivo)) {
+        alert('⚠️ El Objetivo de tiempo debe tener formato hh:mm (ej. 01:30).');
+        return;
+      }
+      const ocupada = impresoraOcupada(impresora, c.id);
+      if (ocupada) {
+        alert(`⚠️ Ya hay otro cambio de diseño en curso en ${impresora} (${ocupada.disenoActual} ➔ ${ocupada.disenoNuevo}).`);
+        return;
+      }
+
+      c.fecha = document.getElementById('ed-fecha').value;
+      c.linea = document.getElementById('ed-linea').value;
+      c.presentacion = document.getElementById('ed-presentacion').value;
+      c.impresora = impresora;
+      c.objetivo = objetivo;
+      c.disenoActual = actual;
+      c.disenoNuevo = nuevo;
+      c.responsable = document.getElementById('ed-responsable').value.trim();
+      c.grupo = document.getElementById('ed-grupo').value;
+
+      sincronizarCambio(c);
+      renderCambiosDiseno();
+      cerrarEdicionCambio();
+    }
+
+    function renderRegistroDiseno() {
+      const tbody = document.getElementById('diseno-registro-body');
+      tbody.innerHTML = '';
+      if (registroDiseno.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-500 italic">Aún no hay cambios de diseño registrados.</td></tr>';
+        return;
+      }
+      registroDiseno.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/50 transition';
+        tr.innerHTML = `
+          <td class="p-3 text-xs">${fechaADisplay(r.fecha)}</td>
+          <td class="p-3 text-xs font-semibold text-brand-lightBlue">${r.linea}</td>
+          <td class="p-3 text-xs">${r.presentacion}</td>
+          <td class="p-3 text-xs">${r.impresora}</td>
+          <td class="p-3 text-xs">${r.responsable}</td>
+          <td class="p-3 text-xs">${r.grupo}</td>
+          <td class="p-3 text-center font-mono text-xs text-slate-300">${r.objetivo}</td>
+          <td class="p-3 text-center font-mono text-xs font-bold ${r.enMeta ? 'text-emerald-400' : 'text-rose-400'}">${r.tiempo}</td>
+          <td class="p-3 text-center font-mono text-xs font-bold ${r.diff > 0 ? 'text-emerald-400' : r.diff < 0 ? 'text-rose-400' : 'text-slate-300'}">${r.textoDif}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // --- Checklist de actividades del cambio de diseño (lista tomada de MATRIZ > SMED C/DISEÑO) ---
+    let checksDiseno = {}; // id de actividad -> true si está realizada
+
+    function renderChecklistDiseno() {
+      // Descarta checks de actividades que ya no existen en la matriz
+      const ids = new Set(actividadesDiseno.map(a => a.id));
+      Object.keys(checksDiseno).forEach(k => { if (!ids.has(Number(k))) delete checksDiseno[k]; });
+
+      const cont = document.getElementById('diseno-checklist');
+      cont.innerHTML = '';
+      const total = actividadesDiseno.length;
+      const hechas = actividadesDiseno.filter(a => checksDiseno[a.id]).length;
+
+      document.getElementById('diseno-check-count').innerText = `${hechas}/${total}`;
+      document.getElementById('diseno-check-bar').style.width = total ? `${(hechas / total) * 100}%` : '0%';
+
+      if (total === 0) {
+        cont.innerHTML = '<p class="text-xs text-slate-500 italic py-2">No hay actividades registradas. Agrégalas en MATRIZ ➔ SMED C/DISEÑO.</p>';
+        return;
+      }
+
+      actividadesDiseno.forEach(a => {
+        const ok = !!checksDiseno[a.id];
+        const row = document.createElement('label');
+        row.className = `flex items-start gap-3 p-2 rounded-lg cursor-pointer transition ${ok ? 'bg-emerald-950/20' : 'hover:bg-slate-800/50'}`;
+        row.innerHTML = `
+          <input type="checkbox" ${ok ? 'checked' : ''} onchange="toggleCheckDiseno(${a.id})"
+            class="mt-0.5 w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
+          <span class="text-sm ${ok ? 'line-through text-slate-400' : 'text-slate-200'}">${a.actividad}</span>
+        `;
+        cont.appendChild(row);
+      });
+    }
+
+    function toggleCheckDiseno(id) {
+      if (checksDiseno[id]) delete checksDiseno[id]; else checksDiseno[id] = true;
+      renderChecklistDiseno();
+    }
+
+    function finalizarCambioDiseno(id) {
+      const c = cambiosActivos.find(x => x.id === id);
+      if (!c) return;
+
+      const seg = segundosCambio(c);
+      const tiempo = formatoTiempo(seg);
+      const diff = objetivoASegundos(c.objetivo) - seg; // + ganado, - excedido
+      const enMeta = diff >= 0;
+      const textoDif = diff > 0 ? `Ganado ${formatoTiempo(diff)}`
+                     : diff < 0 ? `Excedido ${formatoTiempo(-diff)}`
+                     : 'En objetivo';
+
+      const { id: _id, acumuladoMs, reanudadoTs, checks, ...datos } = c;
+      const registro = { ...datos, id: idUnico(), tiempo, enMeta, diff, textoDif };
+      registroDiseno.push(registro);
+
+      cambiosActivos = cambiosActivos.filter(x => x.id !== id);
+      detallesCambioAbiertos.delete(id);
+
+      if (Nube.activa) { // guarda el resultado y quita el cambio de "en curso" en un solo paso
+        Nube.escribir('finalizeActive', { id, record: registro });
+      } else {
+        guardarRegistros();
+        guardarCambiosActivos();
+      }
+      renderRegistroDiseno();
+      renderCambiosDiseno();
+      renderIndicadores();
+
+      alert(`✅ Cambio de diseño finalizado.\nFecha: ${fechaADisplay(c.fecha)}\nTiempo Total: ${tiempo}\nDiseño: ${c.disenoActual} -> ${c.disenoNuevo}\nLínea: ${c.linea} | ${c.impresora} | Grupo: ${c.grupo}\nObjetivo: ${c.objetivo} (${textoDif})\nResponsable: ${c.responsable}`);
+    }
+
+    // --- Áreas / equipos: llenado de selects ---
+    function poblarAreas() {
+      const areas = areasLista;
+
+      const filtro = document.getElementById('filter-area-select');
+      filtro.innerHTML = `<option value="TODAS">Todas las áreas (${areas.length})</option>` +
+        areas.map((a, i) => `<option value="${a}">${i + 1}. ${a}</option>`).join('');
+
+      document.getElementById('modal-input-area').innerHTML =
+        areas.map(a => `<option value="${a}">${a}</option>`).join('');
+    }
+
+    // --- 7. ADMINISTRACIÓN MATRIZ DE TAREAS (EDITOR) ---
+    let equipoEditandoId = null; // null = agregando, id = editando
+    let areaEditando = null;     // null = agregando, nombre = renombrando
+
+    function renderMatrizEditor() {
+      const orden = areasLista;
+      matrizSMED.sort((a, b) => orden.indexOf(a.area) - orden.indexOf(b.area)); // estable: conserva el orden dentro de cada área
+
+      // Áreas (chips con editar / eliminar)
+      const chips = document.getElementById('matriz-areas');
+      chips.innerHTML = '';
+      areasLista.forEach(area => {
+        const n = matrizSMED.filter(m => m.area === area).length;
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-1.5 py-1';
+        chip.innerHTML = `
+          <span class="text-xs font-semibold text-brand-lightBlue">${area}</span>
+          <span class="text-[11px] text-slate-500">${n} equipo${n === 1 ? '' : 's'}</span>
+          ${sinLiberacionCalidad(area) ? '<span class="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5" title="Liberado por calidad: N/A">Calidad N/A</span>' : ''}
+          <button data-act="edit" class="text-amber-400 hover:text-amber-300 p-1 transition" title="Editar Área"><i class="fa-solid fa-pen text-[11px]"></i></button>
+          <button data-act="del" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar Área"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+        `;
+        chip.querySelector('[data-act="edit"]').onclick = () => openAreaModal(area);
+        chip.querySelector('[data-act="del"]').onclick = () => deleteArea(area);
+        chips.appendChild(chip);
+      });
+
+      // Equipos
+      const tbody = document.getElementById('matriz-table-body');
+      tbody.innerHTML = '';
+      matrizSMED.forEach((item) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/50 transition';
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-brand-lightBlue text-xs">${item.area}</td>
+          <td class="p-3 font-medium text-slate-200">${item.equipo}</td>
+          <td class="p-3 text-center whitespace-nowrap">
+            <button onclick="openEditEquipoModal(${item.id})" class="text-amber-400 hover:text-amber-300 p-1 mr-1 transition" title="Editar Equipo">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="deleteTask(${item.id})" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar Equipo">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // --- Equipos: agregar / editar ---
+    function openAddTaskModal() {
+      equipoEditandoId = null;
+      document.getElementById('modal-equipo-title').innerText = 'Agregar Equipo';
+      document.getElementById('modal-equipo-submit').innerText = 'Guardar Equipo';
+      document.getElementById('modal-input-equipo').value = '';
+      document.getElementById('modal-add-task').classList.remove('hidden');
+    }
+
+    function openEditEquipoModal(id) {
+      const item = matrizSMED.find(m => m.id === id);
+      if (!item) return;
+      equipoEditandoId = id;
+      document.getElementById('modal-equipo-title').innerText = 'Editar Equipo';
+      document.getElementById('modal-equipo-submit').innerText = 'Guardar Cambios';
+      document.getElementById('modal-input-area').value = item.area;
+      document.getElementById('modal-input-equipo').value = item.equipo;
+      document.getElementById('modal-add-task').classList.remove('hidden');
+    }
+
+    function closeAddTaskModal() {
+      document.getElementById('modal-add-task').classList.add('hidden');
+    }
+
+    function saveNewTask(e) {
+      e.preventDefault();
+      const area = document.getElementById('modal-input-area').value;
+      const equipo = document.getElementById('modal-input-equipo').value.trim();
+
+      if (matrizSMED.some(m => m.id !== equipoEditandoId && m.area === area && m.equipo.toLowerCase() === equipo.toLowerCase())) {
+        alert('⚠️ Ese equipo ya existe en el área seleccionada.');
+        return;
+      }
+
+      if (equipoEditandoId !== null) {
+        const item = matrizSMED.find(m => m.id === equipoEditandoId);
+        item.area = area;
+        item.equipo = equipo;
+      } else {
+        matrizSMED.push({ id: siguienteId(matrizSMED), area, equipo });
+      }
+      guardarMatriz();
+      renderMatrizEditor();
+      ejecutarGeneracionChecklist(true); // Actualiza el checklist conservando el avance
+      closeAddTaskModal();
+      equipoEditandoId = null;
+    }
+
+    function deleteTask(id) {
+      if (confirm('¿Estás seguro de eliminar este equipo de la Matriz?')) {
+        matrizSMED = matrizSMED.filter(t => t.id !== id);
+        guardarMatriz();
+        renderMatrizEditor();
+        ejecutarGeneracionChecklist(true);
+      }
+    }
+
+    // --- Áreas: agregar / renombrar / eliminar ---
+    function openAreaModal(area = null) {
+      areaEditando = area;
+      document.getElementById('modal-area-title').innerText = area ? 'Editar Área' : 'Agregar Área';
+      document.getElementById('modal-area-nombre').value = area || '';
+      document.getElementById('modal-area-sin-calidad').checked = area !== null && areasSinCalidad.includes(area);
+      document.getElementById('modal-area').classList.remove('hidden');
+    }
+
+    function closeAreaModal() {
+      document.getElementById('modal-area').classList.add('hidden');
+    }
+
+    function saveArea(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('modal-area-nombre').value.trim();
+      if (!nombre) return;
+
+      if (areasLista.some(a => a !== areaEditando && a.toLowerCase() === nombre.toLowerCase())) {
+        alert('⚠️ Ya existe un área con ese nombre.');
+        return;
+      }
+
+      if (areaEditando !== null) {
+        const idx = areasLista.indexOf(areaEditando);
+        areasLista[idx] = nombre;
+        matrizSMED.forEach(m => { if (m.area === areaEditando) m.area = nombre; });
+        areasSinCalidad = areasSinCalidad.filter(a => a !== areaEditando); // la opción viaja con el área renombrada
+      } else {
+        areasLista.push(nombre);
+      }
+      if (document.getElementById('modal-area-sin-calidad').checked) areasSinCalidad.push(nombre);
+
+      guardarMatriz();
+      poblarAreas();
+      renderMatrizEditor();
+      ejecutarGeneracionChecklist(true);
+      closeAreaModal();
+      areaEditando = null;
+    }
+
+    function deleteArea(area) {
+      if (matrizSMED.some(m => m.area === area)) {
+        alert(`⚠️ El área "${area}" aún tiene equipos. Elimínalos o edítalos para moverlos a otra área antes de borrarla.`);
+        return;
+      }
+      if (confirm(`¿Eliminar el área "${area}"?`)) {
+        areasLista = areasLista.filter(a => a !== area);
+        areasSinCalidad = areasSinCalidad.filter(a => a !== area);
+        guardarMatriz();
+        poblarAreas();
+        renderMatrizEditor();
+        ejecutarGeneracionChecklist(true);
+      }
+    }
+
+    // Id único y consecutivo para nuevos elementos de una lista
+    function siguienteId(lista) {
+      return lista.reduce((max, x) => Math.max(max, x.id), 0) + 1;
+    }
+
+    // --- Matriz: selector de lista (SMED Conversión / SMED C/Diseño) ---
+    function cambiarVistaMatriz(vista) {
+      const conv = document.getElementById('matriz-vista-conv');
+      const dis = document.getElementById('matriz-vista-dis');
+      const btnConv = document.getElementById('matriz-btn-conv');
+      const btnDis = document.getElementById('matriz-btn-dis');
+      const esConv = vista === 'conv';
+
+      conv.classList.toggle('hidden', !esConv);
+      conv.classList.toggle('flex', esConv);
+      dis.classList.toggle('hidden', esConv);
+      dis.classList.toggle('flex', !esConv);
+
+      const activo = ['bg-brand-blue', 'text-white'];
+      const inactivo = ['bg-slate-800', 'text-slate-300', 'hover:bg-slate-700'];
+      btnConv.classList.remove(...activo, ...inactivo);
+      btnDis.classList.remove(...activo, ...inactivo);
+      btnConv.classList.add(...(esConv ? activo : inactivo));
+      btnDis.classList.add(...(esConv ? inactivo : activo));
+    }
+
+    // --- Actividades de SMED C/Diseño: agregar / editar / eliminar ---
+    let actividadEditandoId = null; // null = agregando, id = editando
+
+    function renderActividadesDiseno() {
+      renderChecklistDiseno(); // mantiene sincronizado el checklist previo
+      renderCambiosDiseno();   // y el checklist de cada cambio en curso
+      const tbody = document.getElementById('actividades-diseno-body');
+      tbody.innerHTML = '';
+      if (actividadesDiseno.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-500 italic">Aún no hay actividades de cambio de diseño. Usa "Agregar Actividad" para crear la primera.</td></tr>';
+        return;
+      }
+      actividadesDiseno.forEach((act, i) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/50 transition';
+        tr.innerHTML = `
+          <td class="p-3 text-center text-xs font-semibold text-brand-lightBlue">${i + 1}</td>
+          <td class="p-3 text-slate-200">${act.actividad}</td>
+          <td class="p-3 text-center whitespace-nowrap">
+            <button onclick="openActividadModal(${act.id})" class="text-amber-400 hover:text-amber-300 p-1 mr-1 transition" title="Editar Actividad">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="deleteActividad(${act.id})" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar Actividad">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openActividadModal(id = null) {
+      actividadEditandoId = id;
+      const act = id !== null ? actividadesDiseno.find(a => a.id === id) : null;
+      document.getElementById('modal-actividad-title').innerText = act ? 'Editar Actividad' : 'Agregar Actividad';
+      document.getElementById('modal-actividad-submit').innerText = act ? 'Guardar Cambios' : 'Guardar Actividad';
+      document.getElementById('modal-actividad-texto').value = act ? act.actividad : '';
+      document.getElementById('modal-actividad').classList.remove('hidden');
+    }
+
+    function closeActividadModal() {
+      document.getElementById('modal-actividad').classList.add('hidden');
+    }
+
+    function saveActividad(e) {
+      e.preventDefault();
+      const texto = document.getElementById('modal-actividad-texto').value.trim();
+      if (!texto) return;
+
+      if (actividadesDiseno.some(a => a.id !== actividadEditandoId && a.actividad.toLowerCase() === texto.toLowerCase())) {
+        alert('⚠️ Esa actividad ya existe en la lista.');
+        return;
+      }
+
+      if (actividadEditandoId !== null) {
+        actividadesDiseno.find(a => a.id === actividadEditandoId).actividad = texto;
+      } else {
+        actividadesDiseno.push({ id: siguienteId(actividadesDiseno), actividad: texto });
+      }
+      guardarMatriz();
+      renderActividadesDiseno();
+      closeActividadModal();
+      actividadEditandoId = null;
+    }
+
+    function deleteActividad(id) {
+      if (confirm('¿Estás seguro de eliminar esta actividad de la lista de C/Diseño?')) {
+        actividadesDiseno = actividadesDiseno.filter(a => a.id !== id);
+        guardarMatriz();
+        renderActividadesDiseno();
+      }
+    }
+
+    // --- 8. INDICADORES: RESULTADOS DE SMED CONVERSIÓN Y C/DISEÑO ---
+    const indicadorCharts = {};
+
+    function textoDesviacion(seg) {
+      if (seg > 0) return `Ganado ${formatoTiempo(Math.round(seg))}`;
+      if (seg < 0) return `Excedido ${formatoTiempo(Math.round(-seg))}`;
+      return 'En objetivo';
+    }
+    function claseDif(n) {
+      return n > 0 ? 'text-emerald-400' : n < 0 ? 'text-rose-400' : 'text-slate-300';
+    }
+
+    // Estado de cada bloque (registros mostrados, detalle y barra seleccionada)
+    const indicadorVista = {};
+
+    // Pinta KPIs, gráfica, detalle del día y tabla de un bloque (prefijo ind-conv / ind-dis)
+    function renderBloqueIndicadores(prefijo, registros, etiquetaFn, filaFn, mensajeVacio, detalleFn) {
+      indicadorVista[prefijo] = { registros, detalleFn, seleccion: null };
+      document.getElementById(`${prefijo}-detalle`).classList.add('hidden');
+
+      const n = registros.length;
+      const segundos = registros.map(r => r.segundos);
+      const enMeta = registros.filter(r => r.enMeta).length;
+      const prom = n ? segundos.reduce((a, b) => a + b, 0) / n : 0;
+      const difProm = n ? registros.reduce((a, r) => a + r.diff, 0) / n : 0;
+      const pct = n ? Math.round((enMeta / n) * 100) : 0;
+
+      document.getElementById(`${prefijo}-kpi-total`).innerText = n;
+      document.getElementById(`${prefijo}-kpi-prom`).innerText = n ? formatoTiempo(Math.round(prom)) : '--:--:--';
+      const kMeta = document.getElementById(`${prefijo}-kpi-meta`);
+      kMeta.innerText = n ? `${pct}%` : '--';
+      kMeta.className = `text-xl font-bold mt-1 ${!n ? 'text-white' : pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`;
+      document.getElementById(`${prefijo}-kpi-meta-sub`).innerText = `${enMeta} de ${n} cambios`;
+      const kDif = document.getElementById(`${prefijo}-kpi-dif`);
+      kDif.innerText = n ? textoDesviacion(difProm) : '--';
+      kDif.className = `text-xl font-bold font-mono mt-1 ${n ? claseDif(difProm) : 'text-white'}`;
+
+      // Tabla (más reciente primero)
+      const tbody = document.getElementById(`${prefijo}-body`);
+      tbody.innerHTML = '';
+      if (!n) {
+        const cols = tbody.closest('table').querySelectorAll('thead th').length;
+        tbody.innerHTML = `<tr><td colspan="${cols}" class="p-6 text-center text-slate-500 italic">${mensajeVacio}</td></tr>`;
+      } else {
+        registros.slice().reverse().forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/50 transition';
+          tr.innerHTML = filaFn(r);
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Gráfica: tiempo real (barras, verde en objetivo / rojo excedido) vs objetivo (línea)
+      const canvas = document.getElementById(`${prefijo}-chart`);
+      const vacio = document.getElementById(`${prefijo}-chart-empty`);
+      if (indicadorCharts[prefijo]) { indicadorCharts[prefijo].destroy(); indicadorCharts[prefijo] = null; }
+      canvas.classList.toggle('hidden', !n);
+      vacio.classList.toggle('hidden', !!n);
+      vacio.innerText = mensajeVacio;
+      if (!n) return;
+
+      const aMin = seg => Math.round((seg / 60) * 10) / 10;
+      indicadorCharts[prefijo] = new Chart(canvas.getContext('2d'), {
+        data: {
+          labels: registros.map(etiquetaFn),
+          datasets: [{
+            type: 'bar',
+            label: 'Tiempo real (min)',
+            data: segundos.map(aMin),
+            backgroundColor: registros.map(r => r.enMeta ? '#10b981' : '#f43f5e'),
+            borderColor: '#ffffff',
+            borderWidth: 0,
+            borderRadius: 6
+          }, {
+            type: 'line',
+            label: 'Objetivo (min)',
+            data: registros.map(r => aMin(objetivoASegundos(r.objetivo))),
+            borderColor: '#f59e0b',
+            borderDash: [5, 5],
+            pointBackgroundColor: '#f59e0b',
+            fill: false,
+            tension: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          onClick: (evt, elementos) => {
+            if (elementos && elementos.length) seleccionarBarraIndicador(prefijo, elementos[0].index);
+          },
+          onHover: (evt, elementos) => {
+            if (evt.native && evt.native.target) evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default';
+          },
+          plugins: { legend: { labels: { color: '#94a3b8' } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, title: { display: true, text: 'min', color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // --- Detalle del día al seleccionar una barra ---
+    function seleccionarBarraIndicador(prefijo, idx) {
+      const vista = indicadorVista[prefijo];
+      const chart = indicadorCharts[prefijo];
+      if (!vista || !chart || !vista.registros[idx]) return;
+      vista.seleccion = idx;
+      chart.data.datasets[0].borderWidth = vista.registros.map((_, i) => (i === idx ? 3 : 0));
+      chart.update();
+      pintarDetalleIndicador(prefijo);
+    }
+
+    function cerrarDetalleIndicador(prefijo) {
+      const vista = indicadorVista[prefijo];
+      const chart = indicadorCharts[prefijo];
+      if (vista) vista.seleccion = null;
+      if (chart) {
+        chart.data.datasets[0].borderWidth = chart.data.datasets[0].data.map(() => 0);
+        chart.update();
+      }
+      document.getElementById(`${prefijo}-detalle`).classList.add('hidden');
+    }
+
+    function pintarDetalleIndicador(prefijo) {
+      const vista = indicadorVista[prefijo];
+      const cont = document.getElementById(`${prefijo}-detalle`);
+      const sel = vista.registros[vista.seleccion];
+      const delDia = vista.registros.filter(r => r.fecha === sel.fecha);
+
+      const tarjetas = delDia.map(r => {
+        const campos = vista.detalleFn(r).map(([etiqueta, valor]) => `
+          <div>
+            <p class="text-[11px] text-slate-500">${etiqueta}</p>
+            <p class="text-sm text-slate-100 font-medium">${valor}</p>
+          </div>`).join('');
+        return `<div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 p-3 rounded-lg border ${r === sel ? 'border-brand-blue bg-slate-800/60' : 'border-slate-800'}">${campos}</div>`;
+      }).join('');
+
+      cont.innerHTML = `
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-bold text-white">
+              <i class="fa-regular fa-calendar-check text-brand-lightBlue mr-2"></i>Datos del ${fechaADisplay(sel.fecha)}
+              <span class="text-xs font-normal text-slate-400 ml-1">(${delDia.length} cambio${delDia.length === 1 ? '' : 's'})</span>
+            </h4>
+            <button onclick="cerrarDetalleIndicador('${prefijo}')" class="text-slate-400 hover:text-white transition" title="Cerrar">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="space-y-2">${tarjetas}</div>
+        </div>`;
+      cont.classList.remove('hidden');
+    }
+
+    // --- Filtros ---
+    function poblarFiltroIndicador(id, valores, textoTodos) {
+      const select = document.getElementById(id);
+      const previo = select.value;
+      const lista = [...new Set(valores.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
+      select.innerHTML = `<option value="">${textoTodos}</option>` + lista.map(v => `<option value="${v}">${v}</option>`).join('');
+      select.value = lista.includes(previo) ? previo : '';
+      return select.value;
+    }
+
+    // --- Eliminar un resultado registrado (requiere clave) ---
+    const CLAVE_BORRADO = '1122';
+    let borrarPendiente = null; // { tipo: 'conv' | 'dis', id }
+
+    function pedirBorrarRegistro(tipo, id) {
+      const r = (tipo === 'conv' ? registroConversion : registroDiseno).find(x => x.id === id);
+      if (!r) return;
+      borrarPendiente = { tipo, id };
+      document.getElementById('borrar-registro-detalle').innerText = tipo === 'conv'
+        ? `${fechaADisplay(r.fecha)} · ${r.tipoCambio} · ${r.formato} · ${r.tiempo}`
+        : `${fechaADisplay(r.fecha)} · ${r.linea} · ${r.impresora} · ${r.disenoActual} ➔ ${r.disenoNuevo} · ${r.tiempo}`;
+      document.getElementById('borrar-clave').value = '';
+      document.getElementById('borrar-clave-error').classList.add('hidden');
+      document.getElementById('modal-borrar-registro').classList.remove('hidden');
+      document.getElementById('borrar-clave').focus();
+    }
+
+    function cerrarBorrarRegistro() {
+      document.getElementById('modal-borrar-registro').classList.add('hidden');
+      document.getElementById('borrar-clave').value = '';
+      borrarPendiente = null;
+    }
+
+    function quitarRegistroLocal(tipo, id) {
+      if (tipo === 'conv') registroConversion = registroConversion.filter(r => r.id !== id);
+      else registroDiseno = registroDiseno.filter(r => r.id !== id);
+      guardarRegistros(); // solo escribe en el navegador (no hace nada útil en modo Google Sheets)
+      renderRegistroDiseno(); // la tabla de la pestaña SMED C/DISEÑO usa los mismos datos
+      renderIndicadores();
+      cerrarBorrarRegistro();
+    }
+
+    async function confirmarBorrarRegistro(e) {
+      e.preventDefault();
+      if (!borrarPendiente) { cerrarBorrarRegistro(); return; }
+      const clave = document.getElementById('borrar-clave').value;
+      const { tipo, id } = borrarPendiente;
+
+      const claveIncorrecta = () => {
+        document.getElementById('borrar-clave-error').classList.remove('hidden');
+        document.getElementById('borrar-clave').value = '';
+        document.getElementById('borrar-clave').focus();
+      };
+
+      if (Nube.activa) { // la clave se valida en el servidor
+        try {
+          marcarSeccionesModificadas(SECCIONES_POR_ACCION.deleteResult);
+          await Nube.llamar('deleteResult', { tipo, id, clave });
+        } catch (err) {
+          if (err.message.indexOf('CLAVE_INCORRECTA') >= 0) claveIncorrecta();
+          else alert('⚠️ No se pudo eliminar: ' + err.message);
+          return;
+        }
+        quitarRegistroLocal(tipo, id);
+        programarSincronizacion(500);
+        return;
+      }
+
+      if (clave !== CLAVE_BORRADO) { claveIncorrecta(); return; }
+      quitarRegistroLocal(tipo, id);
+    }
+
+    function limpiarPeriodoIndicadores() {
+      ['ind-fecha-desde', 'ind-fecha-hasta', 'ind-conv-f-tipo', 'ind-conv-f-formato', 'ind-dis-f-linea', 'ind-dis-f-impresora']
+        .forEach(id => { document.getElementById(id).value = ''; });
+      renderIndicadores();
+    }
+
+    function renderIndicadores() {
+      if (typeof Chart === 'undefined') return;
+
+      // Opciones de los filtros (a partir de los registros existentes) y valores elegidos
+      const fTipo = poblarFiltroIndicador('ind-conv-f-tipo', registroConversion.map(r => r.tipoCambio), 'Todos');
+      const fFormato = poblarFiltroIndicador('ind-conv-f-formato', registroConversion.map(r => r.formato), 'Todos');
+      const fLinea = poblarFiltroIndicador('ind-dis-f-linea', registroDiseno.map(r => r.linea), 'Todas');
+      const fImpresora = poblarFiltroIndicador('ind-dis-f-impresora', registroDiseno.map(r => r.impresora), 'Todas');
+
+      // Periodo seleccionado (las fechas de los registros están en formato AAAA-MM-DD)
+      const desde = document.getElementById('ind-fecha-desde').value;
+      const hasta = document.getElementById('ind-fecha-hasta').value;
+      const invalido = desde && hasta && desde > hasta;
+      const enPeriodo = r => !invalido && (!desde || r.fecha >= desde) && (!hasta || r.fecha <= hasta);
+      const hayPeriodo = !!(desde || hasta);
+      const hayFiltro = hayPeriodo || !!(fTipo || fFormato || fLinea || fImpresora);
+
+      const texto = document.getElementById('ind-periodo-texto');
+      if (invalido) {
+        texto.innerText = '⚠️ La fecha inicial es posterior a la fecha final.';
+        texto.className = 'text-xs text-amber-400 self-center';
+      } else {
+        texto.innerText = !hayPeriodo ? 'Mostrando todos los registros'
+          : `Mostrando: ${desde ? fechaADisplay(desde) : 'inicio'} al ${hasta ? fechaADisplay(hasta) : 'hoy'}`;
+        texto.className = 'text-xs text-slate-400 self-center';
+      }
+      const msgVacio = hayFiltro ? 'No hay cambios registrados con los filtros seleccionados.' : 'Aún no hay cambios registrados.';
+
+      // Conversiones
+      const conversiones = registroConversion.filter(r =>
+        enPeriodo(r) && (!fTipo || r.tipoCambio === fTipo) && (!fFormato || r.formato === fFormato));
+      renderBloqueIndicadores('ind-conv', conversiones,
+        r => `${fechaADisplay(r.fecha).slice(0, 5)} ${r.formato}`,
+        r => `
+          <td class="p-3 text-xs">${fechaADisplay(r.fecha)}</td>
+          <td class="p-3 text-xs font-semibold text-brand-lightBlue">${r.tipoCambio}</td>
+          <td class="p-3 text-xs">${r.formato}</td>
+          <td class="p-3 text-xs">${r.responsable}</td>
+          <td class="p-3 text-xs font-mono">${r.horaInicio}</td>
+          <td class="p-3 text-xs font-mono">${r.horaFin}</td>
+          <td class="p-3 text-center text-xs font-semibold ${r.equipos100 === r.totalEquipos ? 'text-emerald-400' : 'text-amber-400'}">${r.equipos100}/${r.totalEquipos}</td>
+          <td class="p-3 text-center font-mono text-xs text-slate-300">${r.objetivo}</td>
+          <td class="p-3 text-center font-mono text-xs font-bold ${r.enMeta ? 'text-emerald-400' : 'text-rose-400'}">${r.tiempo}</td>
+          <td class="p-3 text-center font-mono text-xs font-bold ${claseDif(r.diff)}">${r.textoDif}</td>
+          <td class="p-3 text-center no-print">
+            <button onclick="pedirBorrarRegistro('conv', ${r.id})" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar registro">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>`,
+        msgVacio,
+        r => [
+          ['Tipo de cambio', r.tipoCambio], ['Formato', r.formato], ['Responsable', r.responsable], ['Equipos al 100%', `${r.equipos100}/${r.totalEquipos}`],
+          ['Inicio', r.horaInicio], ['Fin', r.horaFin], ['Objetivo', r.objetivo], ['Tiempo', r.tiempo],
+          ['Resultado', `<span class="${claseDif(r.diff)} font-bold">${r.textoDif}</span>`]
+        ]);
+
+      // Cambios de diseño (los segundos reales se derivan del objetivo y la diferencia)
+      const cambiosDiseno = registroDiseno
+        .filter(r => enPeriodo(r) && (!fLinea || r.linea === fLinea) && (!fImpresora || r.impresora === fImpresora))
+        .map(r => ({ ...r, segundos: objetivoASegundos(r.objetivo) - r.diff }));
+      renderBloqueIndicadores('ind-dis', cambiosDiseno,
+        r => `${fechaADisplay(r.fecha).slice(0, 5)} ${r.disenoActual} ➔ ${r.disenoNuevo}`,
+        r => `
+          <td class="p-3 text-xs">${fechaADisplay(r.fecha)}</td>
+          <td class="p-3 text-xs font-semibold text-brand-lightBlue">${r.linea}</td>
+          <td class="p-3 text-xs">${r.presentacion}</td>
+          <td class="p-3 text-xs">${r.impresora}</td>
+          <td class="p-3 text-xs">${r.disenoActual}</td>
+          <td class="p-3 text-xs">${r.disenoNuevo}</td>
+          <td class="p-3 text-xs">${r.responsable}</td>
+          <td class="p-3 text-xs">${r.grupo}</td>
+          <td class="p-3 text-center font-mono text-xs text-slate-300">${r.objetivo}</td>
+          <td class="p-3 text-center font-mono text-xs font-bold ${r.enMeta ? 'text-emerald-400' : 'text-rose-400'}">${r.tiempo}</td>
+          <td class="p-3 text-center font-mono text-xs font-bold ${claseDif(r.diff)}">${r.textoDif}</td>
+          <td class="p-3 text-center no-print">
+            <button onclick="pedirBorrarRegistro('dis', ${r.id})" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar registro">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>`,
+        msgVacio,
+        r => [
+          ['Línea', r.linea], ['Presentación', r.presentacion], ['Impresora', r.impresora], ['Grupo', r.grupo],
+          ['Diseño que se cambió', r.disenoActual], ['Diseño que ingresó', r.disenoNuevo], ['Responsable', r.responsable], ['Objetivo', r.objetivo],
+          ['Tiempo', r.tiempo], ['Resultado', `<span class="${claseDif(r.diff)} font-bold">${r.textoDif}</span>`]
+        ]);
+    }
+  </script>
+</body>
+</html>
