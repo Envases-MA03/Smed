@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -324,6 +324,9 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Último registro con el mismo formato (debajo del checklist) -->
+        <div id="conv-ultimo" class="hidden no-print shrink-0 mt-4 bg-slate-900 border border-slate-800 rounded-xl p-3"></div>
       </div>
     </section>
 
@@ -476,10 +479,11 @@
                 <th class="p-3 text-center">Objetivo</th>
                 <th class="p-3 text-center">Tiempo</th>
                 <th class="p-3 text-center">Ganado / Excedido</th>
+                <th class="p-3 min-w-[12rem]">Observaciones</th>
               </tr>
             </thead>
             <tbody id="diseno-registro-body" class="divide-y divide-slate-800 text-sm text-slate-200">
-              <tr><td colspan="9" class="p-6 text-center text-slate-500 italic">Aún no hay cambios de diseño registrados.</td></tr>
+              <tr><td colspan="10" class="p-6 text-center text-slate-500 italic">Aún no hay cambios de diseño registrados.</td></tr>
             </tbody>
           </table>
         </div>
@@ -741,6 +745,10 @@
             <label class="block text-xs font-semibold text-slate-300 mb-1">Impresora:</label>
             <select id="ind-dis-f-impresora" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
           </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Grupo:</label>
+            <select id="ind-dis-f-grupo" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -863,6 +871,28 @@
         <div class="pt-3 border-t border-slate-700 flex justify-end space-x-2">
           <button type="button" onclick="cerrarBorrarRegistro()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">Cancelar</button>
           <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg">Eliminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL PARA AGREGAR / EDITAR OBSERVACIONES DE UN REGISTRO DE CAMBIO DE DISEÑO -->
+  <div id="modal-observaciones" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden">
+      <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="fa-solid fa-comment-dots text-brand-accent mr-2"></i> Observaciones del cambio
+        </h3>
+        <button onclick="cerrarObservaciones()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form onsubmit="guardarObservaciones(event)" class="p-5 space-y-3">
+        <p id="obs-detalle" class="text-xs text-slate-400"></p>
+        <textarea id="obs-texto" rows="5" maxlength="600" placeholder="Escribe aquí tus observaciones (se imprimen en el reporte)…" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue"></textarea>
+        <div class="flex justify-end gap-2">
+          <button type="button" onclick="cerrarObservaciones()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-4 py-2 rounded-lg text-xs font-bold transition">Cancelar</button>
+          <button type="submit" class="bg-brand-blue hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition">Guardar</button>
         </div>
       </form>
     </div>
@@ -1068,7 +1098,8 @@
       finalizeActive: ['diseno', 'enCurso'],
       saveActive: ['enCurso'], removeActive: ['enCurso'], toggleActiveCheck: ['enCurso'],
       startConversion: ['conversion'], patchConversion: ['conversion'], setConversionCheck: ['conversion'],
-      deleteResult: ['conversiones', 'diseno']
+      deleteResult: ['conversiones', 'diseno'],
+      updateResult: ['diseno']
     };
     function marcarSeccionesModificadas(secciones) {
       Nube.version++;
@@ -1434,6 +1465,34 @@
       tickTimerConversion();
     }
 
+    // Último registro de conversión con el mismo formato que la conversión en curso
+    function renderUltimoConversion() {
+      const cont = document.getElementById('conv-ultimo');
+      if (!cont) return;
+      if (!currentConfig.objetivo) { cont.classList.add('hidden'); return; } // sin conversión iniciada
+      const formato = `${currentConfig.formatoOrigen} ➔ ${currentConfig.formatoDestino}`;
+      const ultimo = registroConversion.filter(r => r.formato === formato)
+        .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || (b.id - a.id))[0];
+      cont.classList.remove('hidden');
+      if (!ultimo) {
+        cont.innerHTML = `<p class="text-xs font-bold text-white mb-1"><i class="fa-solid fa-clock-rotate-left text-brand-accent mr-1"></i>Último registro · ${esc(formato)}</p>
+          <p class="text-xs text-slate-500 italic">Aún no hay conversiones registradas con este formato.</p>`;
+        return;
+      }
+      const dato = (etq, val, cls = 'text-slate-100') => `<div><p class="text-[10px] text-slate-500">${etq}</p><p class="text-xs font-semibold ${cls}">${val}</p></div>`;
+      cont.innerHTML = `<p class="text-xs font-bold text-white mb-2"><i class="fa-solid fa-clock-rotate-left text-brand-accent mr-1"></i>Último registro · ${esc(formato)}</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-x-3 gap-y-2">
+          ${dato('Fecha', fechaADisplay(ultimo.fecha))}
+          ${dato('Tipo de cambio', esc(ultimo.tipoCambio))}
+          ${dato('Responsable', esc(ultimo.responsable))}
+          ${dato('Equipos al 100%', `${ultimo.equipos100}/${ultimo.totalEquipos}`)}
+          ${dato('Inicio / Fin', `${esc(ultimo.horaInicio)} – ${esc(ultimo.horaFin)}`)}
+          ${dato('Objetivo', esc(ultimo.objetivo), 'font-mono text-slate-300')}
+          ${dato('Tiempo', esc(ultimo.tiempo), `font-mono ${ultimo.enMeta ? 'text-emerald-400' : 'text-rose-400'}`)}
+          ${dato('Ganado / Excedido', esc(ultimo.textoDif), `font-mono ${claseDif(ultimo.diff)}`)}
+        </div>`;
+    }
+
     function ejecutarGeneracionChecklist() {
       // Cada equipo lleva 2 checks (Conversión y Liberado por calidad) guardados en convEstado.checks
       currentChecklistState = matrizSMED.map(item => {
@@ -1453,6 +1512,7 @@
         : 'Objetivo sin definir';
 
       renderChecklist();
+      renderUltimoConversion();
     }
 
     // --- 5. RENDERIZADO Y CÁLCULOS DEL CHECKLIST ---
@@ -1886,6 +1946,11 @@
             </button>
           </div>
 
+          <div class="mt-3 no-print">
+            <label class="block text-xs font-semibold text-slate-300 mb-1"><i class="fa-solid fa-comment-dots text-brand-accent mr-1"></i>Observaciones:</label>
+            <textarea rows="2" maxlength="600" placeholder="Comentarios del cambio (opcional)…" onchange="guardarObservacionesEnCurso(${c.id}, this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">${esc(c.observaciones || '')}</textarea>
+          </div>
+
           <details class="mt-3" ${detallesCambioAbiertos.has(c.id) ? 'open' : ''} ontoggle="toggleDetalleCambio(${c.id}, this.open)">
             <summary class="text-xs font-semibold text-slate-300 cursor-pointer select-none">Checklist de actividades: <span class="text-white">${hechas}/${total}</span></summary>
             <div class="mt-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">${items}</div>
@@ -1981,6 +2046,7 @@
         disenoNuevo: nuevo,
         responsable: document.getElementById('diseno-responsable').value.trim(),
         grupo: document.getElementById('diseno-grupo').value,
+        observaciones: '',
         acumuladoMs: 0,
         reanudadoTs: ahora(), // el cronómetro inicia de inmediato
         checks: { ...checksDiseno }
@@ -2074,6 +2140,40 @@
       cerrarEdicionCambio();
     }
 
+    // --- Observaciones de un registro de cambio de diseño ---
+    let obsRegistroId = null;
+    function abrirObservaciones(id) {
+      const r = registroDiseno.find(x => x.id === id);
+      if (!r) return;
+      obsRegistroId = id;
+      document.getElementById('obs-detalle').innerText = `${fechaADisplay(r.fecha)} · ${r.linea} · ${r.impresora} · ${r.disenoActual} ➔ ${r.disenoNuevo}`;
+      document.getElementById('obs-texto').value = r.observaciones || '';
+      document.getElementById('modal-observaciones').classList.remove('hidden');
+      document.getElementById('obs-texto').focus();
+    }
+    function cerrarObservaciones() {
+      document.getElementById('modal-observaciones').classList.add('hidden');
+      obsRegistroId = null;
+    }
+    function guardarObservaciones(e) {
+      e.preventDefault();
+      const r = registroDiseno.find(x => x.id === obsRegistroId);
+      if (!r) { cerrarObservaciones(); return; }
+      r.observaciones = document.getElementById('obs-texto').value.trim();
+      if (Nube.activa) Nube.escribir('updateResult', { tipo: 'dis', id: r.id, record: r });
+      else guardarRegistros();
+      renderRegistroDiseno();
+      renderIndicadores();
+      cerrarObservaciones();
+    }
+    // Observaciones capturadas mientras el cambio sigue en curso (se guardan al salir del cuadro)
+    function guardarObservacionesEnCurso(id, texto) {
+      const c = cambiosActivos.find(x => x.id === id);
+      if (!c) return;
+      c.observaciones = texto.trim();
+      sincronizarCambio(c);
+    }
+
     function renderRegistroDiseno() {
       const tbody = document.getElementById('diseno-registro-body');
       tbody.innerHTML = '';
@@ -2081,11 +2181,12 @@
       const limite = new Date(ahora());
       limite.setDate(limite.getDate() - 6);
       const desde = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`;
-      const recientes = registroDiseno.filter(r => String(r.fecha) >= desde);
+      const recientes = registroDiseno.filter(r => String(r.fecha) >= desde)
+        .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || (b.id - a.id)); // más reciente primero
 
       if (recientes.length === 0) {
         const msg = registroDiseno.length === 0 ? 'Aún no hay cambios de diseño registrados.' : 'No hay cambios de diseño en los últimos 7 días.';
-        tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-500 italic">${msg}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-500 italic">${msg}</td></tr>`;
         return;
       }
       recientes.forEach(r => {
@@ -2101,6 +2202,14 @@
           <td class="p-3 text-center font-mono text-xs text-slate-300">${r.objetivo}</td>
           <td class="p-3 text-center font-mono text-xs font-bold ${r.enMeta ? 'text-emerald-400' : 'text-rose-400'}">${r.tiempo}</td>
           <td class="p-3 text-center font-mono text-xs font-bold ${r.diff > 0 ? 'text-emerald-400' : r.diff < 0 ? 'text-rose-400' : 'text-slate-300'}">${r.textoDif}</td>
+          <td class="p-3 text-xs">
+            <div class="flex items-start gap-2">
+              <span class="flex-1 whitespace-pre-line ${r.observaciones ? 'text-slate-200' : 'text-slate-500 italic'}">${r.observaciones ? esc(r.observaciones) : 'Sin observaciones'}</span>
+              <button onclick="abrirObservaciones(${r.id})" class="no-print shrink-0 text-brand-lightBlue hover:text-white p-1 transition" title="${r.observaciones ? 'Editar' : 'Agregar'} observaciones">
+                <i class="fa-solid ${r.observaciones ? 'fa-pen' : 'fa-comment-medical'}"></i>
+              </button>
+            </div>
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -2588,6 +2697,8 @@
         ${tiempos}
         <h2 class="text-sm font-bold uppercase tracking-wide mb-2">${esConv ? 'Checklist de avance' : 'Checklist de actividades'}</h2>
         ${checklist}
+        ${esConv ? '' : `<h2 class="text-sm font-bold uppercase tracking-wide mt-5 mb-2">Observaciones</h2>
+        <div class="border border-slate-300 rounded p-3 text-sm whitespace-pre-line min-h-[4rem]">${r.observaciones ? esc(r.observaciones) : '<span class="text-slate-400 italic">Sin observaciones</span>'}</div>`}
       </div>`;
     }
 
@@ -2834,12 +2945,13 @@
     }
 
     function limpiarPeriodoIndicadores() {
-      ['ind-fecha-desde', 'ind-fecha-hasta', 'ind-conv-f-tipo', 'ind-conv-f-formato', 'ind-dis-f-linea', 'ind-dis-f-impresora']
+      ['ind-fecha-desde', 'ind-fecha-hasta', 'ind-conv-f-tipo', 'ind-conv-f-formato', 'ind-dis-f-linea', 'ind-dis-f-impresora', 'ind-dis-f-grupo']
         .forEach(id => { document.getElementById(id).value = ''; });
       renderIndicadores();
     }
 
     function renderIndicadores() {
+      renderUltimoConversion(); // el último registro puede haber cambiado (sincronización o nuevo registro)
       actualizarListaImpresion(); // mantiene al día la lista de la sección "Impresión de resultados"
       if (typeof Chart === 'undefined') return;
 
@@ -2848,6 +2960,7 @@
       const fFormato = poblarFiltroIndicador('ind-conv-f-formato', registroConversion.map(r => r.formato), 'Todos');
       const fLinea = poblarFiltroIndicador('ind-dis-f-linea', registroDiseno.map(r => r.linea), 'Todas');
       const fImpresora = poblarFiltroIndicador('ind-dis-f-impresora', registroDiseno.map(r => r.impresora), 'Todas');
+      const fGrupo = poblarFiltroIndicador('ind-dis-f-grupo', ['Grupo A', 'Grupo B', 'Grupo C', 'Grupo D', ...registroDiseno.map(r => r.grupo)], 'Todos');
 
       // Periodo seleccionado (las fechas de los registros están en formato AAAA-MM-DD)
       const desde = document.getElementById('ind-fecha-desde').value;
@@ -2855,7 +2968,7 @@
       const invalido = desde && hasta && desde > hasta;
       const enPeriodo = r => !invalido && (!desde || r.fecha >= desde) && (!hasta || r.fecha <= hasta);
       const hayPeriodo = !!(desde || hasta);
-      const hayFiltro = hayPeriodo || !!(fTipo || fFormato || fLinea || fImpresora);
+      const hayFiltro = hayPeriodo || !!(fTipo || fFormato || fLinea || fImpresora || fGrupo);
 
       const texto = document.getElementById('ind-periodo-texto');
       if (invalido) {
@@ -2898,7 +3011,7 @@
 
       // Cambios de diseño (los segundos reales se derivan del objetivo y la diferencia)
       const cambiosDiseno = registroDiseno
-        .filter(r => enPeriodo(r) && (!fLinea || r.linea === fLinea) && (!fImpresora || r.impresora === fImpresora))
+        .filter(r => enPeriodo(r) && (!fLinea || r.linea === fLinea) && (!fImpresora || r.impresora === fImpresora) && (!fGrupo || r.grupo === fGrupo))
         .map(r => ({ ...r, segundos: objetivoASegundos(r.objetivo) - r.diff }));
       renderBloqueIndicadores('ind-dis', cambiosDiseno,
         r => `${fechaADisplay(r.fecha).slice(0, 5)} ${r.disenoActual} ➔ ${r.disenoNuevo}`,
@@ -2923,7 +3036,8 @@
         r => [
           ['Línea', r.linea], ['Presentación', r.presentacion], ['Impresora', r.impresora], ['Grupo', r.grupo],
           ['Diseño que se cambió', r.disenoActual], ['Diseño que ingresó', r.disenoNuevo], ['Responsable', r.responsable], ['Objetivo', r.objetivo],
-          ['Tiempo', r.tiempo], ['Resultado', `<span class="${claseDif(r.diff)} font-bold">${r.textoDif}</span>`]
+          ['Tiempo', r.tiempo], ['Resultado', `<span class="${claseDif(r.diff)} font-bold">${r.textoDif}</span>`],
+          ['Observaciones', r.observaciones ? esc(r.observaciones) : '—']
         ]);
     }
   </script>
