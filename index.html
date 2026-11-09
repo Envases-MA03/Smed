@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1b365d">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Sistema SMED & Mejora Continua - Planta DWI Latas de Aluminio</title>
+  <title>Sistema SMED & Mejora Continua - Planta Mérida</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
@@ -1958,14 +1958,16 @@
         return;
       }
 
-      // Aviso si hay actividades del checklist sin realizar antes de iniciar
+      // Bloqueo: no se puede iniciar el cambio de diseño si el checklist no está completo
       const pendientes = actividadesDiseno.filter(a => !checksDiseno[a.id]);
       if (pendientes.length > 0) {
         const lista = pendientes.slice(0, 5).map(a => `• ${a.actividad}`).join('\n') +
           (pendientes.length > 5 ? `\n• ... y ${pendientes.length - 5} más` : '');
-        if (!confirm(`⚠️ Hay ${pendientes.length} actividad(es) del checklist sin realizar:\n\n${lista}\n\n¿Deseas iniciar el cambio de diseño de todas formas?`)) {
-          return;
-        }
+        alert(`⛔ No puedes iniciar el cambio de diseño.\n\nFaltan ${pendientes.length} actividad(es) del checklist por marcar:\n\n${lista}\n\nCompleta el checklist para poder iniciar.`);
+        mostrarChecklistPrevio = true;
+        renderCambiosDiseno();
+        document.getElementById('diseno-checklist-previo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
       }
 
       const nuevoCambio = {
