@@ -1497,7 +1497,9 @@
       // Cada equipo lleva 2 checks (Conversión y Liberado por calidad) guardados en convEstado.checks
       currentChecklistState = matrizSMED.map(item => {
         const chk = convEstado.checks[item.id] || {};
-        return { ...item, conversion: !!chk.c, calidad: !!chk.q };
+        return { ...item, conversion: !!chk.c, calidad: !!chk.q,
+                 tc: chk.c && Number.isFinite(chk.ct) ? chk.ct : null,   // segundos de conversión general al marcar Conversión
+                 tq: chk.q && Number.isFinite(chk.qt) ? chk.qt : null }; // segundos de conversión general al marcar Liberado por calidad
       });
 
       // Actualizar Encabezado Subtítulo
@@ -1593,8 +1595,13 @@
       if (!equipo) return;
       equipo[campo] = !equipo[campo];
       const clave = campo === 'conversion' ? 'c' : 'q';
-      convEstado.checks[id] = { ...(convEstado.checks[id] || {}), [clave]: equipo[campo] };
+      const claveT = clave === 'c' ? 'ct' : 'qt';
+      // Marca de tiempo: segundos transcurridos del cronómetro general de conversión al dar el check
+      const marca = equipo[campo] ? segundosConversion() : null;
+      equipo[clave === 'c' ? 'tc' : 'tq'] = marca;
+      convEstado.checks[id] = { ...(convEstado.checks[id] || {}), [clave]: equipo[campo], [claveT]: marca };
       Nube.escribir('setConversionCheck', { id, campo: clave, valor: equipo[campo] });
+      Nube.escribir('setConversionCheck', { id, campo: claveT, valor: marca });
       renderChecklist();
     }
 
@@ -1665,8 +1672,16 @@
     // Aplica lo que llegó del servidor para la conversión en curso
     function aplicarConversionRemota(doc) {
       currentConfig = doc && doc.config ? doc.config : configConversionVacia();
+      const checksRemotos = (doc && doc.checks) || {};
+      // Si el servidor no devolvió la marca de tiempo de un check ya activo, se conserva la local
+      Object.keys(checksRemotos).forEach(id => {
+        const loc = convEstado.checks[id], rem = checksRemotos[id];
+        if (!loc || !rem) return;
+        if (rem.c && !Number.isFinite(rem.ct) && loc.c && Number.isFinite(loc.ct)) rem.ct = loc.ct;
+        if (rem.q && !Number.isFinite(rem.qt) && loc.q && Number.isFinite(loc.qt)) rem.qt = loc.qt;
+      });
       convEstado = {
-        checks: (doc && doc.checks) || {},
+        checks: checksRemotos,
         acumuladoMs: (doc && doc.acumuladoMs) || 0,
         reanudadoTs: (doc && doc.reanudadoTs) || null
       };
@@ -1735,7 +1750,7 @@
         enMeta: diff >= 0,
         textoDif: textoDif,
         // Foto del checklist al finalizar (para imprimir el resultado más adelante)
-        detalle: { equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e) })) }
+        detalle: { equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e), tc: e.tc, tq: e.tq })) }
       };
       registroConversion.push(registro);
       if (Nube.activa) Nube.escribir('finalizeConversion', { record: registro }); // guarda el resultado y limpia la conversión en curso
@@ -2619,6 +2634,24 @@
       cont.innerHTML = `<div class="bg-white rounded-lg p-4 sm:p-6">${htmlReporteResultado(tipoImpresion(), r)}</div>`;
     }
 
+    // Duración legible en horas y minutos (ej. "2 h 10 min", "30 min")
+    function textoDuracionHM(min) {
+      const h = Math.floor(min / 60), m = min % 60;
+      return h > 0 ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+    }
+    // Tiempos de un equipo: conversión (desde el inicio general), liberación (desde su conversión) y total.
+    // Las marcas se redondean a minutos antes de restar para que conversión + liberación = total.
+    function tiemposEquipo(e) {
+      const nulo = { conv: '—', cal: e.na ? 'N/A' : '—', total: '—' };
+      if (!(e.conversion && Number.isFinite(e.tc))) return nulo;
+      const c = Math.round(e.tc / 60);
+      if (e.na) return { conv: textoDuracionHM(c), cal: 'N/A', total: textoDuracionHM(c) };
+      if (!(e.calidad && Number.isFinite(e.tq))) return { conv: textoDuracionHM(c), cal: '—', total: '—' };
+      const q = Math.round(e.tq / 60);
+      const lib = Math.max(0, q - c);
+      return { conv: textoDuracionHM(c), cal: textoDuracionHM(lib), total: textoDuracionHM(c + lib) };
+    }
+
     // Hoja del reporte (se usa en la vista previa y al imprimir)
     function htmlReporteResultado(tipo, r) {
       const esConv = tipo === 'conv';
@@ -2654,17 +2687,24 @@
           const filas = areas.map(area => {
             const lista = equipos.filter(e => e.area === area);
             const pct = e => e.na ? (e.conversion ? 100 : 0) : (e.conversion ? 50 : 0) + (e.calidad ? 50 : 0);
-            return `<tr class="bg-slate-200 font-bold"><td colspan="4" class="${td} text-xs uppercase tracking-wide">${esc(area)}</td></tr>` +
-              lista.map(e => `<tr>
+            return `<tr class="bg-slate-200 font-bold"><td colspan="7" class="${td} text-xs uppercase tracking-wide">${esc(area)}</td></tr>` +
+              lista.map(e => {
+                const t = tiemposEquipo(e);
+                return `<tr>
                 <td class="${td} pl-5">${esc(e.equipo)}</td>
                 <td class="${td} text-center font-bold">${marca(e.conversion)}</td>
+                <td class="${td} text-center font-mono whitespace-nowrap">${t.conv}</td>
                 <td class="${td} text-center font-bold">${e.na ? 'N/A' : marca(e.calidad)}</td>
+                <td class="${td} text-center font-mono whitespace-nowrap">${t.cal}</td>
+                <td class="${td} text-center font-mono font-bold whitespace-nowrap">${t.total}</td>
                 <td class="${td} text-center font-semibold">${pct(e)}%</td>
-              </tr>`).join('');
+              </tr>`;
+              }).join('');
           }).join('');
-          checklist = `<table class="w-full text-sm border-collapse">
-              <thead><tr><th class="${th}">Equipo / Estación</th><th class="${th} text-center">Conversión</th><th class="${th} text-center">Liberado por calidad</th><th class="${th} text-center">Estatus</th></tr></thead>
-              <tbody>${filas}</tbody></table>`;
+          checklist = `<table class="w-full text-xs border-collapse">
+              <thead><tr><th class="${th}">Equipo / Estación</th><th class="${th} text-center">Conversión</th><th class="${th} text-center">Tiempo de conversión</th><th class="${th} text-center">Liberado por calidad</th><th class="${th} text-center">Tiempo de liberación</th><th class="${th} text-center">Tiempo total</th><th class="${th} text-center">Estatus</th></tr></thead>
+              <tbody>${filas}</tbody></table>
+            <p class="text-[11px] text-slate-500 mt-2"><strong>Tiempo de conversión:</strong> desde el inicio de la conversión general hasta concluir la conversión del equipo. <strong>Tiempo de liberación:</strong> desde la conversión del equipo hasta su liberación por calidad. <strong>Tiempo total</strong> = conversión + liberación. “—” indica sin dato (check pendiente o resultado registrado antes de guardar tiempos por equipo).</p>`;
         }
       } else {
         const acts = r.detalle && Array.isArray(r.detalle.actividades) ? r.detalle.actividades : null;
