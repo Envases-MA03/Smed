@@ -223,9 +223,9 @@
               </div>
             </div>
 
-            <button type="submit" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2 transition duration-200">
+            <button id="btn-iniciar-conversion" type="submit" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2 transition duration-200">
               <i class="fa-solid fa-bolt"></i>
-              <span>Iniciar Conversión</span>
+              <span id="btn-iniciar-conversion-txt">Iniciar Conversión</span>
             </button>
           </form>
         </div>
@@ -1515,6 +1515,47 @@
 
       renderChecklist();
       renderUltimoConversion();
+      sincronizarFormularioConversion();
+    }
+
+    // Con una conversión en curso, el formulario muestra sus datos y queda bloqueado hasta finalizarla.
+    // Sirve también tras actualizar la página o al abrirla desde otro equipo.
+    let formularioConversionBloqueado = false;
+    function sincronizarFormularioConversion() {
+      const ids = ['select-tipo-cambio', 'select-formato-origen', 'select-formato-destino',
+                   'input-tecnico-responsable', 'input-fecha-conversion', 'input-hora-inicio', 'input-objetivo-conversion'];
+      const el = id => document.getElementById(id);
+      const activa = !!currentConfig.objetivo;
+      const btn = el('btn-iniciar-conversion');
+
+      if (activa) {
+        el('select-tipo-cambio').value = currentConfig.tipoCambio;
+        actualizarDesplegablesFormatos();
+        el('select-formato-origen').value = currentConfig.formatoOrigen;
+        el('select-formato-destino').value = currentConfig.formatoDestino;
+        el('input-tecnico-responsable').value = currentConfig.tecnico || '';
+        if (currentConfig.fecha) el('input-fecha-conversion').value = currentConfig.fecha;
+        if (currentConfig.horaInicio) el('input-hora-inicio').value = currentConfig.horaInicio;
+        el('input-objetivo-conversion').value = currentConfig.objetivo;
+      } else if (formularioConversionBloqueado) {
+        // Se finalizó la conversión: formulario listo para la siguiente
+        el('input-tecnico-responsable').value = '';
+        el('input-fecha-conversion').value = fechaLocalHoy();
+        const n = new Date();
+        el('input-hora-inicio').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+        cargarObjetivoConversion();
+      }
+
+      ids.forEach(id => {
+        el(id).disabled = activa;
+        el(id).classList.toggle('opacity-60', activa);
+        el(id).classList.toggle('cursor-not-allowed', activa);
+      });
+      btn.disabled = activa;
+      btn.classList.toggle('opacity-50', activa);
+      btn.classList.toggle('cursor-not-allowed', activa);
+      el('btn-iniciar-conversion-txt').innerText = activa ? 'Conversión en curso' : 'Iniciar Conversión';
+      formularioConversionBloqueado = activa;
     }
 
     // --- 5. RENDERIZADO Y CÁLCULOS DEL CHECKLIST ---
