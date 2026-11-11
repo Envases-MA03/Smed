@@ -234,15 +234,10 @@
         <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl flex-1 flex flex-col justify-between">
           <div>
             <div class="flex justify-between items-center mb-3">
-              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cronómetro de Cambio</h3>
-              <div class="flex space-x-1">
-                <button onclick="toggleTimer()" id="btn-timer-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold transition">
-                  <i class="fa-solid fa-play mr-1"></i> Iniciar
-                </button>
-                <button onclick="resetTimer()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded text-xs transition">
-                  <i class="fa-solid fa-rotate-left"></i>
-                </button>
-              </div>
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">CRONÓMETRO CONVERSIÓN</h3>
+              <button id="btn-descartar-conversion" onclick="descartarConversion()" class="text-rose-400 hover:text-rose-300 px-2 py-1.5 text-xs transition" title="Descartar esta conversión sin registrarla">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
             </div>
 
             <!-- Display de Tiempo -->
@@ -520,7 +515,7 @@
             <h2 class="text-base font-bold text-white flex items-center">
               <i class="fa-solid fa-database text-brand-blue mr-2"></i> Matriz de Áreas y Equipos
             </h2>
-            <p class="text-xs text-slate-400">Equipos que forman el checklist operativo de conversión, organizados por área de manufactura DWI.</p>
+            <p class="text-xs text-slate-400">Equipos que forman el checklist operativo de conversión, organizados por área de manufactura.</p>
           </div>
 
           <!-- Botones Agregar -->
@@ -1197,6 +1192,10 @@
       // Cambios de diseño en curso
       if (cambio('enCurso', est.enCurso)) {
         cambiosActivos = est.enCurso;
+        // Ya no hay pausa: los cambios que habían quedado pausados se reanudan
+        cambiosActivos.forEach(c => {
+          if (!c.reanudadoTs) { c.reanudadoTs = ahora(); sincronizarCambio(c); }
+        });
         renderCambiosDiseno();
       }
 
@@ -1461,7 +1460,6 @@
       Nube.escribir('startConversion', { doc: { config: currentConfig, checks: {}, acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs } });
 
       ejecutarGeneracionChecklist();
-      actualizarBotonTimerConversion();
       tickTimerConversion();
     }
 
@@ -1551,6 +1549,10 @@
         el(id).classList.toggle('opacity-60', activa);
         el(id).classList.toggle('cursor-not-allowed', activa);
       });
+      const btnDesc = el('btn-descartar-conversion');
+      btnDesc.disabled = !activa;
+      btnDesc.classList.toggle('opacity-30', !activa);
+      btnDesc.classList.toggle('cursor-not-allowed', !activa);
       btn.disabled = activa;
       btn.classList.toggle('opacity-50', activa);
       btn.classList.toggle('cursor-not-allowed', activa);
@@ -1669,39 +1671,15 @@
       return Math.max(0, Math.floor(ms / 1000));
     }
 
-    function actualizarBotonTimerConversion() {
-      const btn = document.getElementById('btn-timer-toggle');
-      if (convEstado.reanudadoTs) {
-        btn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pausar`;
-        btn.className = "bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded text-xs font-bold transition";
-      } else {
-        btn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> ${convEstado.acumuladoMs > 0 ? 'Reanudar' : 'Iniciar'}`;
-        btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold transition";
-      }
-    }
-
-    function persistirTimerConversion() {
-      Nube.escribir('patchConversion', { patch: { acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs } });
-    }
-
-    function toggleTimer() {
-      if (convEstado.reanudadoTs) { // pausar: guarda el tramo corrido
-        convEstado.acumuladoMs += ahora() - convEstado.reanudadoTs;
-        convEstado.reanudadoTs = null;
-      } else {                      // iniciar / reanudar
-        convEstado.reanudadoTs = ahora();
-      }
-      actualizarBotonTimerConversion();
+    // Descarta la conversión en curso sin registrarla (limpia avance, cronómetro y formulario)
+    function descartarConversion() {
+      if (!currentConfig.objetivo) return;
+      if (!confirm('¿Descartar la conversión en curso sin registrarla? Se perderá el avance y el cronómetro.')) return;
+      convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
+      currentConfig = configConversionVacia();
+      Nube.escribir('startConversion', { doc: { config: null, checks: {}, acumuladoMs: 0, reanudadoTs: null } });
+      ejecutarGeneracionChecklist();
       tickTimerConversion();
-      persistirTimerConversion();
-    }
-
-    function resetTimer() {
-      convEstado.acumuladoMs = 0;
-      convEstado.reanudadoTs = null;
-      actualizarBotonTimerConversion();
-      tickTimerConversion();
-      persistirTimerConversion();
     }
 
     function tickTimerConversion() {
@@ -1726,8 +1704,12 @@
         acumuladoMs: (doc && doc.acumuladoMs) || 0,
         reanudadoTs: (doc && doc.reanudadoTs) || null
       };
+      // Ya no hay pausa: si la conversión había quedado pausada, se reanuda
+      if (currentConfig.objetivo && !convEstado.reanudadoTs) {
+        convEstado.reanudadoTs = ahora();
+        Nube.escribir('patchConversion', { patch: { acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs } });
+      }
       ejecutarGeneracionChecklist();
-      actualizarBotonTimerConversion();
       tickTimerConversion();
     }
 
@@ -1801,7 +1783,6 @@
       convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
       currentConfig = configConversionVacia();
       ejecutarGeneracionChecklist();
-      actualizarBotonTimerConversion();
       tickTimerConversion();
       renderIndicadores();
 
@@ -1951,7 +1932,6 @@
       cambiosActivos.forEach(c => {
         const seg = segundosCambio(c);
         const excedido = seg > objetivoASegundos(c.objetivo);
-        const pausado = !c.reanudadoTs;
         const total = actividadesDiseno.length;
         const hechas = actividadesDiseno.filter(a => c.checks[a.id]).length;
 
@@ -1983,14 +1963,11 @@
             </div>
             <div class="text-right">
               <span id="cd-timer-${c.id}" class="font-mono ${cronoGrande ? 'text-4xl sm:text-5xl md:text-6xl' : 'text-2xl'} font-extrabold tracking-widest transition-colors ${excedido ? 'text-rose-500' : 'text-emerald-400'}">${formatoTiempo(seg)}</span>
-              <p class="${cronoGrande ? 'text-sm' : 'text-[11px]'} text-slate-400">Objetivo ${objetivoATexto(c.objetivo)}${pausado ? ' · <span class="text-amber-400 font-semibold">En pausa</span>' : ''}</p>
+              <p class="${cronoGrande ? 'text-sm' : 'text-[11px]'} text-slate-400">Objetivo ${objetivoATexto(c.objetivo)}</p>
             </div>
           </div>
 
           <div class="flex flex-wrap gap-2 mt-3 no-print">
-            <button onclick="toggleCambioDiseno(${c.id})" class="${pausado ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'} text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
-              <i class="fa-solid ${pausado ? 'fa-play' : 'fa-pause'} mr-1"></i>${pausado ? 'Reanudar' : 'Pausar'}
-            </button>
             <button onclick="abrirEdicionCambio(${c.id})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition">
               <i class="fa-solid fa-pen mr-1"></i>Editar
             </button>
@@ -2025,19 +2002,6 @@
       if (!c) return;
       if (c.checks[actividadId]) delete c.checks[actividadId]; else c.checks[actividadId] = true;
       if (Nube.activa) Nube.escribir('toggleActiveCheck', { id: cambioId, actividadId }); else guardarCambiosActivos();
-      renderCambiosDiseno();
-    }
-
-    function toggleCambioDiseno(id) {
-      const c = cambiosActivos.find(x => x.id === id);
-      if (!c) return;
-      if (c.reanudadoTs) { // pausar: guarda el tramo corrido
-        c.acumuladoMs += ahora() - c.reanudadoTs;
-        c.reanudadoTs = null;
-      } else {            // reanudar
-        c.reanudadoTs = ahora();
-      }
-      sincronizarCambio(c);
       renderCambiosDiseno();
     }
 
