@@ -35,6 +35,9 @@
     }
   </script>
   <style>
+    /* Indicadores: tablas con scroll vertical (encabezado fijo) */
+    .tabla-scroll-ind { max-height: 17rem; overflow-y: auto; }
+    .tabla-scroll-ind thead th { position: sticky; top: 0; z-index: 2; background: #0f172a; }
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     body {
       font-family: 'Inter', sans-serif;
@@ -221,6 +224,12 @@
                   <input type="text" id="input-objetivo-conversion" required inputmode="numeric" maxlength="5" placeholder="00:00" oninput="formatearObjetivoConversion(this)" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue">
                 </div>
               </div>
+            </div>
+
+            <!-- Observaciones generales del proceso (siguen editables durante la conversión) -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1"><i class="fa-solid fa-comment-dots text-brand-accent mr-1"></i>Observaciones generales (opcional):</label>
+              <textarea id="input-observaciones-conversion" rows="3" maxlength="2000" placeholder="Comentarios generales del proceso de conversión…" oninput="programarGuardadoObsConversion(this.value)" onchange="guardarObservacionesConversion(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue"></textarea>
             </div>
 
             <button id="btn-iniciar-conversion" type="submit" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2 transition duration-200">
@@ -609,6 +618,18 @@
                 <option value="dis">Cambios de diseño</option>
               </select>
             </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Desde:</label>
+              <input type="date" id="imp-fecha-desde" onchange="actualizarListaImpresion()" style="color-scheme: dark;" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Hasta:</label>
+              <input type="date" id="imp-fecha-hasta" onchange="actualizarListaImpresion()" style="color-scheme: dark;" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-blue">
+            </div>
+            <button onclick="limpiarPeriodoImpresion()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold py-2.5 px-3.5 rounded-lg flex items-center space-x-1.5 transition" title="Mostrar todos los resultados">
+              <i class="fa-solid fa-rotate-left"></i>
+              <span>Todos</span>
+            </button>
             <div class="flex-1 min-w-[14rem]">
               <label class="block text-xs font-semibold text-slate-300 mb-1">Resultado:</label>
               <select id="imp-resultado" onchange="renderVistaPreviaImpresion()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue"></select>
@@ -696,7 +717,7 @@
         <div id="ind-conv-detalle" class="hidden mb-2"></div>
 
         <h3 class="text-sm font-bold text-white mt-4 mb-2">Resultados registrados</h3>
-        <div class="overflow-x-auto custom-scrollbar">
+        <div class="overflow-x-auto custom-scrollbar tabla-scroll-ind">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
@@ -710,11 +731,12 @@
                 <th class="p-3 text-center">Objetivo</th>
                 <th class="p-3 text-center">Tiempo</th>
                 <th class="p-3 text-center">Ganado / Excedido</th>
+                <th class="p-3 min-w-[9rem]">Observaciones</th>
                 <th class="p-3 text-center w-16 no-print">Acciones</th>
               </tr>
             </thead>
             <tbody id="ind-conv-body" class="divide-y divide-slate-800 text-sm text-slate-200">
-              <tr><td colspan="11" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
+              <tr><td colspan="12" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
             </tbody>
           </table>
         </div>
@@ -775,7 +797,7 @@
         <div id="ind-dis-detalle" class="hidden mb-2"></div>
 
         <h3 class="text-sm font-bold text-white mt-4 mb-2">Resultados registrados</h3>
-        <div class="overflow-x-auto custom-scrollbar">
+        <div class="overflow-x-auto custom-scrollbar tabla-scroll-ind">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
@@ -876,7 +898,7 @@
     <div class="bg-brand-card w-full max-w-lg rounded-xl border border-brand-border shadow-2xl overflow-hidden">
       <div class="bg-brand-navy px-5 py-4 border-b border-brand-border flex justify-between items-center">
         <h3 class="text-base font-bold text-white flex items-center">
-          <i class="fa-solid fa-comment-dots text-brand-accent mr-2"></i> Observaciones del cambio
+          <i class="fa-solid fa-comment-dots text-brand-accent mr-2"></i> <span id="obs-titulo">Observaciones del cambio</span>
         </h3>
         <button onclick="cerrarObservaciones()" class="text-slate-400 hover:text-white transition">
           <i class="fa-solid fa-xmark text-lg"></i>
@@ -1094,7 +1116,7 @@
       saveActive: ['enCurso'], removeActive: ['enCurso'], toggleActiveCheck: ['enCurso'],
       startConversion: ['conversion'], patchConversion: ['conversion'], setConversionCheck: ['conversion'],
       deleteResult: ['conversiones', 'diseno'],
-      updateResult: ['diseno']
+      updateResult: ['conversiones', 'diseno']
     };
     function marcarSeccionesModificadas(secciones) {
       Nube.version++;
@@ -1260,7 +1282,7 @@
       horaInicio: null
     };
     // Estado compartido de la conversión en curso: checks por equipo y cronómetro (por marcas de tiempo)
-    let convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
+    let convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null, observaciones: '' };
     function configConversionVacia() {
       return { tipoCambio: 'Altura', formatoOrigen: '12 Oz', formatoDestino: '16 Oz', tecnico: 'Ing. Carlos Mendoza', objetivo: null, horaInicio: null };
     }
@@ -1456,8 +1478,9 @@
       currentConfig = { tipoCambio: tipo, formatoOrigen: origen, formatoDestino: destino, tecnico: tecnico, objetivo: objetivo, fecha: fecha, horaInicio: horaInicio };
 
       // El cronómetro arranca desde el tiempo ya transcurrido desde la hora de inicio y el checklist inicia limpio
-      convEstado = { checks: {}, acumuladoMs: Math.max(0, ahora() - inicio.getTime()), reanudadoTs: ahora() };
-      Nube.escribir('startConversion', { doc: { config: currentConfig, checks: {}, acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs } });
+      const obsInicial = document.getElementById('input-observaciones-conversion').value;
+      convEstado = { checks: {}, acumuladoMs: Math.max(0, ahora() - inicio.getTime()), reanudadoTs: ahora(), observaciones: obsInicial };
+      Nube.escribir('startConversion', { doc: { config: currentConfig, checks: {}, acumuladoMs: convEstado.acumuladoMs, reanudadoTs: convEstado.reanudadoTs, observaciones: obsInicial } });
 
       ejecutarGeneracionChecklist();
       tickTimerConversion();
@@ -1535,7 +1558,10 @@
         if (currentConfig.fecha) el('input-fecha-conversion').value = currentConfig.fecha;
         if (currentConfig.horaInicio) el('input-hora-inicio').value = currentConfig.horaInicio;
         el('input-objetivo-conversion').value = currentConfig.objetivo;
+        const ta = el('input-observaciones-conversion');
+        if (document.activeElement !== ta) ta.value = convEstado.observaciones || ''; // no pisa lo que se está escribiendo
       } else if (formularioConversionBloqueado) {
+        el('input-observaciones-conversion').value = '';
         // Se finalizó la conversión: formulario listo para la siguiente
         el('input-tecnico-responsable').value = '';
         el('input-fecha-conversion').value = fechaLocalHoy();
@@ -1671,13 +1697,25 @@
       return Math.max(0, Math.floor(ms / 1000));
     }
 
+    // Observaciones generales del proceso de conversión (se guardan al escribir y se imprimen en el reporte)
+    let timerObsConversion = null;
+    function programarGuardadoObsConversion(texto) {
+      clearTimeout(timerObsConversion);
+      timerObsConversion = setTimeout(() => guardarObservacionesConversion(texto), 1200);
+    }
+    function guardarObservacionesConversion(texto) {
+      clearTimeout(timerObsConversion);
+      convEstado.observaciones = String(texto || '');
+      if (currentConfig.objetivo) Nube.escribir('patchConversion', { patch: { observaciones: convEstado.observaciones } });
+    }
+
     // Descarta la conversión en curso sin registrarla (limpia avance, cronómetro y formulario)
     function descartarConversion() {
       if (!currentConfig.objetivo) return;
       if (!confirm('¿Descartar la conversión en curso sin registrarla? Se perderá el avance y el cronómetro.')) return;
-      convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
+      convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null, observaciones: '' };
       currentConfig = configConversionVacia();
-      Nube.escribir('startConversion', { doc: { config: null, checks: {}, acumuladoMs: 0, reanudadoTs: null } });
+      Nube.escribir('startConversion', { doc: { config: null, checks: {}, acumuladoMs: 0, reanudadoTs: null, observaciones: '' } });
       ejecutarGeneracionChecklist();
       tickTimerConversion();
     }
@@ -1702,7 +1740,8 @@
       convEstado = {
         checks: checksRemotos,
         acumuladoMs: (doc && doc.acumuladoMs) || 0,
-        reanudadoTs: (doc && doc.reanudadoTs) || null
+        reanudadoTs: (doc && doc.reanudadoTs) || null,
+        observaciones: (doc && doc.observaciones) || ''
       };
       // Ya no hay pausa: si la conversión había quedado pausada, se reanuda
       if (currentConfig.objetivo && !convEstado.reanudadoTs) {
@@ -1748,6 +1787,8 @@
         }
       }
 
+      // % global de avance al finalizar (1er pallet liberado)
+      const pctGlobal = total > 0 ? Math.round((currentChecklistState.reduce((acc, e) => acc + porcentajeEquipo(e), 0) / total) * 10) / 10 : 0;
       const seg = segundosConversion();
       const diff = objetivoASegundos(currentConfig.objetivo) - seg; // + ganado, - excedido
       const textoDif = diff > 0 ? `Ganado ${formatoTiempo(diff)}`
@@ -1773,14 +1814,15 @@
         enMeta: diff >= 0,
         textoDif: textoDif,
         // Foto del checklist al finalizar (para imprimir el resultado más adelante)
-        detalle: { equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e), tc: e.tc, tq: e.tq })) }
+        observaciones: (convEstado.observaciones || '').trim(),
+        detalle: { pctGlobal, equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e), tc: e.tc, tq: e.tq })) }
       };
       registroConversion.push(registro);
       if (Nube.activa) Nube.escribir('finalizeConversion', { record: registro }); // guarda el resultado y limpia la conversión en curso
       else guardarRegistros();
 
       // La conversión queda lista para la siguiente
-      convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null };
+      convEstado = { checks: {}, acumuladoMs: 0, reanudadoTs: null, observaciones: '' };
       currentConfig = configConversionVacia();
       ejecutarGeneracionChecklist();
       tickTimerConversion();
@@ -2162,14 +2204,22 @@
 
     // --- Observaciones de un registro de cambio de diseño ---
     let obsRegistroId = null;
-    function abrirObservaciones(id) {
-      const r = registroDiseno.find(x => x.id === id);
+    let obsRegistroTipo = 'dis';
+    function abrirObservaciones(id, tipo = 'dis') {
+      const r = (tipo === 'conv' ? registroConversion : registroDiseno).find(x => x.id === id);
       if (!r) return;
       obsRegistroId = id;
-      document.getElementById('obs-detalle').innerText = `${fechaADisplay(r.fecha)} · ${r.linea} · ${r.impresora} · ${r.disenoActual} ➔ ${r.disenoNuevo}`;
-      document.getElementById('obs-texto').value = r.observaciones || '';
+      obsRegistroTipo = tipo;
+      const ta = document.getElementById('obs-texto');
+      document.getElementById('obs-titulo').innerText = tipo === 'conv' ? 'Observaciones de la conversión' : 'Observaciones del cambio';
+      document.getElementById('obs-detalle').innerText = tipo === 'conv'
+        ? `${fechaADisplay(r.fecha)} · ${r.tipoCambio} · ${r.formato}`
+        : `${fechaADisplay(r.fecha)} · ${r.linea} · ${r.impresora} · ${r.disenoActual} ➔ ${r.disenoNuevo}`;
+      ta.maxLength = tipo === 'conv' ? 2000 : 600;
+      ta.rows = tipo === 'conv' ? 8 : 5;
+      ta.value = r.observaciones || '';
       document.getElementById('modal-observaciones').classList.remove('hidden');
-      document.getElementById('obs-texto').focus();
+      ta.focus();
     }
     function cerrarObservaciones() {
       document.getElementById('modal-observaciones').classList.add('hidden');
@@ -2177,12 +2227,13 @@
     }
     function guardarObservaciones(e) {
       e.preventDefault();
-      const r = registroDiseno.find(x => x.id === obsRegistroId);
+      const tipo = obsRegistroTipo;
+      const r = (tipo === 'conv' ? registroConversion : registroDiseno).find(x => x.id === obsRegistroId);
       if (!r) { cerrarObservaciones(); return; }
       r.observaciones = document.getElementById('obs-texto').value.trim();
-      if (Nube.activa) Nube.escribir('updateResult', { tipo: 'dis', id: r.id, record: r });
+      if (Nube.activa) Nube.escribir('updateResult', { tipo, id: r.id, record: r });
       else guardarRegistros();
-      renderRegistroDiseno();
+      if (tipo === 'dis') renderRegistroDiseno();
       renderIndicadores();
       cerrarObservaciones();
     }
@@ -2619,13 +2670,26 @@
       if (!selRes) return;
       const tipo = tipoImpresion();
       const previo = selRes.value;
-      const lista = (tipo === 'conv' ? registroConversion : registroDiseno).slice()
+      // Periodo elegido (vacío = todos los resultados)
+      const desde = document.getElementById('imp-fecha-desde').value;
+      const hasta = document.getElementById('imp-fecha-hasta').value;
+      const invalido = desde && hasta && desde > hasta;
+      const todos = tipo === 'conv' ? registroConversion : registroDiseno;
+      const lista = todos.filter(r => !invalido && (!desde || String(r.fecha) >= desde) && (!hasta || String(r.fecha) <= hasta))
         .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || (b.id - a.id));
+      const msgVacio = invalido ? 'La fecha inicial es posterior a la final'
+        : (todos.length ? 'No hay resultados en el periodo seleccionado' : 'No hay resultados registrados');
 
-      selRes.innerHTML = `<option value="">${lista.length ? 'Selecciona un resultado…' : 'No hay resultados registrados'}</option>` +
+      selRes.innerHTML = `<option value="">${lista.length ? 'Selecciona un resultado…' : msgVacio}</option>` +
         lista.map(r => `<option value="${r.id}">${esc(etiquetaImpresion(tipo, r))}</option>`).join('');
       selRes.value = lista.some(r => String(r.id) === previo) ? previo : '';
       renderVistaPreviaImpresion();
+    }
+
+    function limpiarPeriodoImpresion() {
+      document.getElementById('imp-fecha-desde').value = '';
+      document.getElementById('imp-fecha-hasta').value = '';
+      actualizarListaImpresion();
     }
 
     function renderVistaPreviaImpresion() {
@@ -2657,6 +2721,16 @@
       return { conv: textoDuracionHM(c), cal: textoDuracionHM(lib), total: textoDuracionHM(c + lib) };
     }
 
+    // % global al finalizar: el guardado en el registro o, en registros anteriores, el calculado con el detalle
+    function pctGlobalRegistro(r) {
+      const d = r.detalle;
+      if (d && Number.isFinite(d.pctGlobal)) return d.pctGlobal;
+      const eq = d && Array.isArray(d.equipos) ? d.equipos : null;
+      if (!eq || eq.length === 0) return null;
+      const pct = e => e.na ? (e.conversion ? 100 : 0) : (e.conversion ? 50 : 0) + (e.calidad ? 50 : 0);
+      return Math.round((eq.reduce((a, e) => a + pct(e), 0) / eq.length) * 10) / 10;
+    }
+
     // Hoja del reporte (se usa en la vista previa y al imprimir)
     function htmlReporteResultado(tipo, r) {
       const esConv = tipo === 'conv';
@@ -2665,7 +2739,8 @@
 
       const datos = esConv ? [
         ['Fecha', fechaADisplay(r.fecha)], ['Tipo de cambio', r.tipoCambio], ['Formato', r.formato], ['Responsable', r.responsable],
-        ['Hora de inicio', r.horaInicio], ['Hora de fin', r.horaFin], ['Equipos al 100%', `${r.equipos100}/${r.totalEquipos}`]
+        ['Hora de inicio', r.horaInicio], ['Hora de fin', r.horaFin], ['Equipos al 100%', `${r.equipos100}/${r.totalEquipos}`],
+        ['% global al 1er pallet liberado', pctGlobalRegistro(r) === null ? '—' : `${pctGlobalRegistro(r).toFixed(1)}%`]
       ] : [
         ['Fecha', fechaADisplay(r.fecha)], ['Línea', r.linea], ['Presentación', r.presentacion], ['Impresora', r.impresora],
         ['Diseño que se cambió', r.disenoActual], ['Diseño que ingresó', r.disenoNuevo], ['Responsable', r.responsable], ['Grupo', r.grupo]
@@ -2708,8 +2783,7 @@
           }).join('');
           checklist = `<table class="w-full text-xs border-collapse">
               <thead><tr><th class="${th}">Equipo / Estación</th><th class="${th} text-center">Conversión</th><th class="${th} text-center">Tiempo de conversión</th><th class="${th} text-center">Liberado por calidad</th><th class="${th} text-center">Tiempo de liberación</th><th class="${th} text-center">Tiempo total</th><th class="${th} text-center">Estatus</th></tr></thead>
-              <tbody>${filas}</tbody></table>
-            <p class="text-[11px] text-slate-500 mt-2"><strong>Tiempo de conversión:</strong> desde el inicio de la conversión general hasta concluir la conversión del equipo. <strong>Tiempo de liberación:</strong> desde la conversión del equipo hasta su liberación por calidad. <strong>Tiempo total</strong> = conversión + liberación. “—” indica sin dato (check pendiente o resultado registrado antes de guardar tiempos por equipo).</p>`;
+              <tbody>${filas}</tbody></table>`;
         }
       } else {
         const acts = r.detalle && Array.isArray(r.detalle.actividades) ? r.detalle.actividades : null;
@@ -2736,14 +2810,14 @@
           </div>
           <p class="text-xs text-slate-500 text-right">Generado:<br>${esc(new Date().toLocaleString('es-MX'))}</p>
         </div>
-        <h2 class="text-sm font-bold uppercase tracking-wide mb-2">Datos del cambio</h2>
+        <h2 class="text-sm font-bold uppercase tracking-wide mb-2">${esConv ? 'Datos de Conversión' : 'Datos del cambio'}</h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mb-5">${datos.map(dato).join('')}</div>
         <h2 class="text-sm font-bold uppercase tracking-wide mb-2">Tiempos</h2>
         ${tiempos}
         <h2 class="text-sm font-bold uppercase tracking-wide mb-2">${esConv ? 'Checklist de avance' : 'Checklist de actividades'}</h2>
         ${checklist}
-        ${esConv ? '' : `<h2 class="text-sm font-bold uppercase tracking-wide mt-5 mb-2">Observaciones</h2>
-        <div class="border border-slate-300 rounded p-3 text-sm whitespace-pre-line min-h-[4rem]">${r.observaciones ? esc(r.observaciones) : '<span class="text-slate-400 italic">Sin observaciones</span>'}</div>`}
+        <h2 class="text-sm font-bold uppercase tracking-wide mt-5 mb-2">Observaciones</h2>
+        <div class="border border-slate-300 rounded p-3 text-sm whitespace-pre-line min-h-[4rem]">${r.observaciones ? esc(r.observaciones) : '<span class="text-slate-400 italic">Sin observaciones</span>'}</div>
       </div>`;
     }
 
@@ -2811,6 +2885,17 @@
           tr.innerHTML = filaFn(r);
           tbody.appendChild(tr);
         });
+      }
+      // Se muestran las primeras 5 filas; el resto con la barra de desplazamiento
+      const contTabla = tbody.closest('.tabla-scroll-ind');
+      if (contTabla) {
+        contTabla.style.maxHeight = '';
+        const filas = Array.from(tbody.querySelectorAll('tr'));
+        if (filas.length <= 5) contTabla.style.maxHeight = 'none';
+        else {
+          const h = contTabla.querySelector('thead').offsetHeight + filas.slice(0, 5).reduce((acc, f) => acc + f.offsetHeight, 0);
+          if (h > 0) contTabla.style.maxHeight = (h + 2) + 'px'; // si la pestaña está oculta, queda el alto por defecto
+        }
       }
 
       // Gráfica: tiempo real (barras, verde en objetivo / rojo excedido) vs objetivo (línea)
@@ -2995,6 +3080,17 @@
       renderIndicadores();
     }
 
+    // Observaciones de una conversión: si son cortas se muestran en la tabla; si son largas, un botón con el
+    // número de observaciones (renglones) que al hacer clic abre una ventana con el texto completo.
+    function celdaObservacionesConv(r) {
+      const t = String(r.observaciones || '').trim();
+      const btnEditar = `<button onclick="abrirObservaciones(${r.id}, 'conv')" class="no-print shrink-0 text-brand-lightBlue hover:text-white p-1 transition" title="${t ? 'Editar' : 'Agregar'} observaciones"><i class="fa-solid ${t ? 'fa-pen' : 'fa-comment-medical'}"></i></button>`;
+      if (!t) return `<div class="flex items-center gap-2"><span class="text-slate-500 italic">Sin observaciones</span>${btnEditar}</div>`;
+      const n = t.split(/\n+/).filter(x => x.trim()).length;
+      if (t.length <= 60 && n <= 1) return `<div class="flex items-start gap-2"><span class="flex-1 whitespace-pre-line text-slate-200">${esc(t)}</span>${btnEditar}</div>`;
+      return `<button onclick="abrirObservaciones(${r.id}, 'conv')" class="inline-flex items-center gap-1.5 bg-brand-blue/20 hover:bg-brand-blue/40 text-brand-lightBlue border border-brand-blue/40 px-2.5 py-1 rounded-lg text-xs font-bold transition" title="Ver observaciones"><i class="fa-solid fa-comment-dots"></i><span>${n}</span></button>`;
+    }
+
     function renderIndicadores() {
       renderUltimoConversion(); // el último registro puede haber cambiado (sincronización o nuevo registro)
       actualizarListaImpresion(); // mantiene al día la lista de la sección "Impresión de resultados"
@@ -3042,6 +3138,7 @@
           <td class="p-3 text-center font-mono text-xs text-slate-300">${r.objetivo}</td>
           <td class="p-3 text-center font-mono text-xs font-bold ${r.enMeta ? 'text-emerald-400' : 'text-rose-400'}">${r.tiempo}</td>
           <td class="p-3 text-center font-mono text-xs font-bold ${claseDif(r.diff)}">${r.textoDif}</td>
+          <td class="p-3 text-xs">${celdaObservacionesConv(r)}</td>
           <td class="p-3 text-center no-print">
             <button onclick="pedirBorrarRegistro('conv', ${r.id})" class="text-rose-400 hover:text-rose-300 p-1 transition" title="Eliminar registro">
               <i class="fa-solid fa-trash-can"></i>
@@ -3051,7 +3148,8 @@
         r => [
           ['Tipo de cambio', r.tipoCambio], ['Formato', r.formato], ['Responsable', r.responsable], ['Equipos al 100%', `${r.equipos100}/${r.totalEquipos}`],
           ['Inicio', r.horaInicio], ['Fin', r.horaFin], ['Objetivo', r.objetivo], ['Tiempo', r.tiempo],
-          ['Resultado', `<span class="${claseDif(r.diff)} font-bold">${r.textoDif}</span>`]
+          ['Resultado', `<span class="${claseDif(r.diff)} font-bold">${r.textoDif}</span>`],
+          ['Observaciones', r.observaciones ? esc(r.observaciones) : '—']
         ]);
 
       // Cambios de diseño (los segundos reales se derivan del objetivo y la diferencia)
