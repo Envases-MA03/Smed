@@ -644,8 +644,8 @@
     <!-- 3. SECCIÓN: DASHBOARD DE INDICADORES OEE Y SMED -->
     <section id="tab-metrics-dashboard" class="h-full p-2 sm:p-4 hidden overflow-y-auto custom-scrollbar space-y-4">
 
-      <!-- Periodo a visualizar -->
-      <div class="bg-brand-card p-4 rounded-xl border border-brand-border shadow-xl">
+      <!-- Periodo a visualizar (fijo al deslizar) -->
+      <div class="sticky top-0 z-30 bg-brand-card p-4 rounded-xl border border-brand-border shadow-xl shadow-black/60">
         <div class="flex flex-wrap items-end gap-4">
           <div class="flex items-center text-sm font-bold text-white mr-2 self-center">
             <i class="fa-regular fa-calendar-days text-brand-lightBlue mr-2"></i> Periodo
@@ -663,82 +663,6 @@
             <span>Limpiar filtros</span>
           </button>
           <span id="ind-periodo-texto" class="text-xs text-slate-400 self-center">Mostrando todos los registros</span>
-        </div>
-      </div>
-
-      <!-- Resultados: SMED Conversión -->
-      <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl">
-        <div class="flex items-center mb-4 pb-3 border-b border-brand-border">
-          <span class="bg-blue-500/10 p-2 rounded-lg text-brand-lightBlue mr-3"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg></span>
-          <div>
-            <h2 class="text-base font-bold text-white">Conversiones</h2>
-            <p class="text-xs text-slate-400">Resultados de las conversiones finalizadas (tiempo real contra objetivo).</p>
-          </div>
-        </div>
-
-        <!-- Filtros -->
-        <div class="flex flex-wrap items-end gap-3 mb-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de cambio:</label>
-            <select id="ind-conv-f-tipo" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Formato:</label>
-            <select id="ind-conv-f-formato" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <p class="text-[11px] text-slate-400 font-medium">Cambios registrados</p>
-            <h3 id="ind-conv-kpi-total" class="text-xl font-bold text-white mt-1">0</h3>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <p class="text-[11px] text-slate-400 font-medium">Tiempo promedio</p>
-            <h3 id="ind-conv-kpi-prom" class="text-xl font-bold text-white font-mono mt-1">--:--:--</h3>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <p class="text-[11px] text-slate-400 font-medium">Dentro de objetivo</p>
-            <h3 id="ind-conv-kpi-meta" class="text-xl font-bold text-white mt-1">--</h3>
-            <span id="ind-conv-kpi-meta-sub" class="text-[11px] text-slate-500">0 de 0 cambios</span>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <p class="text-[11px] text-slate-400 font-medium">Desviación promedio vs objetivo</p>
-            <h3 id="ind-conv-kpi-dif" class="text-xl font-bold text-white font-mono mt-1">--</h3>
-          </div>
-        </div>
-
-        <h3 class="text-sm font-bold text-white mb-2">Tiempo real vs objetivo por cambio (min) <span class="text-xs font-normal text-slate-500 ml-2">Haz clic en una barra para ver el detalle del día</span></h3>
-        <div class="h-60 mb-2">
-          <canvas id="ind-conv-chart"></canvas>
-          <p id="ind-conv-chart-empty" class="hidden h-full flex items-center justify-center text-sm text-slate-500 italic">Aún no hay cambios registrados.</p>
-        </div>
-
-        <div id="ind-conv-detalle" class="hidden mb-2"></div>
-
-        <h3 class="text-sm font-bold text-white mt-4 mb-2">Resultados registrados</h3>
-        <div class="overflow-x-auto custom-scrollbar tabla-scroll-ind">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
-                <th class="p-3">Fecha</th>
-                <th class="p-3">Tipo de cambio</th>
-                <th class="p-3">Formato</th>
-                <th class="p-3">Responsable</th>
-                <th class="p-3">Inicio</th>
-                <th class="p-3">Fin</th>
-                <th class="p-3 text-center">Equipos al 100%</th>
-                <th class="p-3 text-center">Objetivo</th>
-                <th class="p-3 text-center">Tiempo</th>
-                <th class="p-3 text-center">Ganado / Excedido</th>
-                <th class="p-3 min-w-[9rem]">Observaciones</th>
-                <th class="p-3 text-center w-16 no-print">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="ind-conv-body" class="divide-y divide-slate-800 text-sm text-slate-200">
-              <tr><td colspan="12" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -816,6 +740,82 @@
               </tr>
             </thead>
             <tbody id="ind-dis-body" class="divide-y divide-slate-800 text-sm text-slate-200">
+              <tr><td colspan="12" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resultados: SMED Conversión -->
+      <div class="bg-brand-card p-3 sm:p-5 rounded-xl border border-brand-border shadow-xl">
+        <div class="flex items-center mb-4 pb-3 border-b border-brand-border">
+          <span class="bg-blue-500/10 p-2 rounded-lg text-brand-lightBlue mr-3"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M6 8.5c0 1.1 2.7 2 6 2s6-.9 6-2"/><path d="M9.5 13v4" opacity=".6"/></svg></span>
+          <div>
+            <h2 class="text-base font-bold text-white">Conversiones</h2>
+            <p class="text-xs text-slate-400">Resultados de las conversiones finalizadas (tiempo real contra objetivo).</p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex flex-wrap items-end gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de cambio:</label>
+            <select id="ind-conv-f-tipo" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Formato:</label>
+            <select id="ind-conv-f-formato" onchange="renderIndicadores()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-blue min-w-[9rem]"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Cambios registrados</p>
+            <h3 id="ind-conv-kpi-total" class="text-xl font-bold text-white mt-1">0</h3>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Tiempo promedio</p>
+            <h3 id="ind-conv-kpi-prom" class="text-xl font-bold text-white font-mono mt-1">--:--:--</h3>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Dentro de objetivo</p>
+            <h3 id="ind-conv-kpi-meta" class="text-xl font-bold text-white mt-1">--</h3>
+            <span id="ind-conv-kpi-meta-sub" class="text-[11px] text-slate-500">0 de 0 cambios</span>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p class="text-[11px] text-slate-400 font-medium">Desviación promedio vs objetivo</p>
+            <h3 id="ind-conv-kpi-dif" class="text-xl font-bold text-white font-mono mt-1">--</h3>
+          </div>
+        </div>
+
+        <h3 class="text-sm font-bold text-white mb-2">Tiempo real vs objetivo por cambio (min) <span class="text-xs font-normal text-slate-500 ml-2">Haz clic en una barra para ver el detalle del día</span></h3>
+        <div class="h-60 mb-2">
+          <canvas id="ind-conv-chart"></canvas>
+          <p id="ind-conv-chart-empty" class="hidden h-full flex items-center justify-center text-sm text-slate-500 italic">Aún no hay cambios registrados.</p>
+        </div>
+
+        <div id="ind-conv-detalle" class="hidden mb-2"></div>
+
+        <h3 class="text-sm font-bold text-white mt-4 mb-2">Resultados registrados</h3>
+        <div class="overflow-x-auto custom-scrollbar tabla-scroll-ind">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-slate-300 text-xs uppercase tracking-wider border-b border-slate-700">
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Tipo de cambio</th>
+                <th class="p-3">Formato</th>
+                <th class="p-3">Responsable</th>
+                <th class="p-3">Inicio</th>
+                <th class="p-3">Fin</th>
+                <th class="p-3 text-center">Equipos al 100%</th>
+                <th class="p-3 text-center">Objetivo</th>
+                <th class="p-3 text-center">Tiempo</th>
+                <th class="p-3 text-center">Ganado / Excedido</th>
+                <th class="p-3 min-w-[9rem]">Observaciones</th>
+                <th class="p-3 text-center w-16 no-print">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="ind-conv-body" class="divide-y divide-slate-800 text-sm text-slate-200">
               <tr><td colspan="12" class="p-6 text-center text-slate-500 italic">Aún no hay cambios registrados.</td></tr>
             </tbody>
           </table>
@@ -1050,7 +1050,7 @@
     // =====================================================================
     // Si la página NO la sirve Apps Script (p. ej. GitHub Pages), pega aquí la URL de la aplicación web
     // (termina en /exec). Si se sirve desde Apps Script, déjalo vacío: usa la conexión interna.
-    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbz1-JrvHUviCXi-W644L-W5A51_Vw5V1-k_tHXMFTkmreNq5C-MhFzFM2_XnGc018_j/exec';
+    const URL_APPS_SCRIPT = '';
 
     const EN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
     const Nube = {
