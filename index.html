@@ -1520,7 +1520,8 @@
         const chk = convEstado.checks[item.id] || {};
         return { ...item, conversion: !!chk.c, calidad: !!chk.q,
                  tc: chk.c && Number.isFinite(chk.ct) ? chk.ct : null,   // segundos de conversión general al marcar Conversión
-                 tq: chk.q && Number.isFinite(chk.qt) ? chk.qt : null }; // segundos de conversión general al marcar Liberado por calidad
+                 tq: chk.q && Number.isFinite(chk.qt) ? chk.qt : null,   // segundos de conversión general al marcar Liberado por calidad
+                 ps: chk.ps || null };                                     // hora de inicio previo del equipo (hh:mm) o null = N/A
       });
 
       // Actualizar Encabezado Subtítulo
@@ -1635,7 +1636,12 @@
           const tr = document.createElement('tr');
           tr.className = pct === 100 ? 'bg-emerald-950/20 hover:bg-emerald-900/30 transition' : 'hover:bg-slate-800/50 transition';
           tr.innerHTML = `
-            <td class="p-3 pl-6 font-medium ${pct === 100 ? 'text-emerald-300' : 'text-slate-200'}">${e.equipo}</td>
+            <td class="p-3 pl-6 font-medium ${pct === 100 ? 'text-emerald-300' : 'text-slate-200'}">
+              <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <span>${e.equipo}</span>
+                ${htmlInicioPrevio(e)}
+              </div>
+            </td>
             <td class="p-3 text-center">
               <input type="checkbox" ${e.conversion ? 'checked' : ''} onchange="toggleCheckEquipo(${e.id}, 'conversion')"
                 class="w-4 h-4 text-brand-blue bg-slate-900 border-slate-700 rounded focus:ring-brand-blue cursor-pointer">
@@ -1671,6 +1677,61 @@
       convEstado.checks[id] = { ...(convEstado.checks[id] || {}), [clave]: equipo[campo], [claveT]: marca };
       Nube.escribir('setConversionCheck', { id, campo: clave, valor: equipo[campo] });
       Nube.escribir('setConversionCheck', { id, campo: claveT, valor: marca });
+      renderChecklist();
+    }
+
+    // --- Inicio previo por equipo ---
+    // Hay equipos que arrancan antes de la hora de inicio general de la conversión. Al capturar su hora (hh:mm),
+    // su tiempo de conversión se mide desde ahí: tiempo transcurrido de la conversión + lo que iniciaron antes.
+    // Vacío = N/A (el equipo inicia junto con la conversión).
+    const MAX_INICIO_PREVIO_SEG = 12 * 3600;
+
+    // Segundos que el equipo inició antes que la conversión. Si la hora capturada es mayor que la de inicio
+    // de la conversión, se entiende que fue el día anterior (cruce de medianoche).
+    function offsetInicioPrevioSeg(ps) {
+      if (!ps || !currentConfig.horaInicio) return 0;
+      const [ph, pm] = ps.split(':').map(Number);
+      const [ch, cm] = currentConfig.horaInicio.split(':').map(Number);
+      let min = (ch * 60 + cm) - (ph * 60 + pm);
+      if (min < 0) min += 1440;
+      return min * 60;
+    }
+
+    function htmlInicioPrevio(e) {
+      const activa = !!currentConfig.objetivo;
+      const off = e.ps ? offsetInicioPrevioSeg(e.ps) : 0;
+      const aviso = e.ps && activa
+        ? `<span class="text-[10px] font-mono text-amber-400 whitespace-nowrap">${textoDuracionHM(Math.round(off / 60))} antes</span>`
+        : '';
+      return `<div class="flex flex-col items-center gap-0.5 no-print">
+        <input type="text" data-ps="${e.id}" value="${e.ps || ''}" ${activa ? '' : 'disabled'}
+          inputmode="numeric" maxlength="5" placeholder="N/A" autocomplete="off"
+          title="${activa ? 'Hora de inicio previo (hh:mm). Déjalo en N/A si el equipo inició junto con la conversión.' : 'Inicia la conversión para capturar el inicio previo del equipo.'}"
+          oninput="formatearInicioPrevio(this)" onchange="guardarInicioPrevio(${e.id}, this)"
+          class="w-20 bg-slate-900 border ${e.ps ? 'border-amber-500/60 text-amber-300' : 'border-slate-700 text-white'} rounded-md px-1.5 py-1 text-xs font-mono text-center placeholder-slate-500 placeholder:font-bold focus:outline-none focus:border-brand-blue ${activa ? '' : 'opacity-40 cursor-not-allowed'}">
+        ${aviso}
+      </div>`;
+    }
+
+    function formatearInicioPrevio(input) {
+      const digits = input.value.replace(/\D/g, '').slice(0, 4);
+      input.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+    }
+
+    function guardarInicioPrevio(id, input) {
+      const equipo = currentChecklistState.find(e => e.id === id);
+      if (!equipo) return;
+      let v = input.value.trim();
+      if (v && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) {
+        alert('⚠️ El inicio previo debe tener formato hh:mm en 24 horas (ej. 07:00).');
+        v = '';
+      } else if (v && offsetInicioPrevioSeg(v) > MAX_INICIO_PREVIO_SEG) {
+        alert(`⚠️ El inicio previo (${v}) debe ser anterior a la hora de inicio de la conversión (${currentConfig.horaInicio}), máximo 12 horas antes.`);
+        v = '';
+      }
+      equipo.ps = v || null;
+      convEstado.checks[id] = { ...(convEstado.checks[id] || {}), ps: equipo.ps };
+      Nube.escribir('setConversionCheck', { id, campo: 'ps', valor: equipo.ps });
       renderChecklist();
     }
 
@@ -1815,7 +1876,7 @@
         textoDif: textoDif,
         // Foto del checklist al finalizar (para imprimir el resultado más adelante)
         observaciones: (convEstado.observaciones || '').trim(),
-        detalle: { pctGlobal, equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e), tc: e.tc, tq: e.tq })) }
+        detalle: { pctGlobal, equipos: currentChecklistState.map(e => ({ area: e.area, equipo: e.equipo, conversion: !!e.conversion, calidad: !!e.calidad, na: sinLiberacionCalidad(e), tc: e.tc, tq: e.tq, ps: e.ps || null, po: e.ps ? offsetInicioPrevioSeg(e.ps) : 0 })) }
       };
       registroConversion.push(registro);
       if (Nube.activa) Nube.escribir('finalizeConversion', { record: registro }); // guarda el resultado y limpia la conversión en curso
@@ -2713,12 +2774,13 @@
     function tiemposEquipo(e) {
       const nulo = { conv: '—', cal: e.na ? 'N/A' : '—', total: '—' };
       if (!(e.conversion && Number.isFinite(e.tc))) return nulo;
-      const c = Math.round(e.tc / 60);
-      if (e.na) return { conv: textoDuracionHM(c), cal: 'N/A', total: textoDuracionHM(c) };
-      if (!(e.calidad && Number.isFinite(e.tq))) return { conv: textoDuracionHM(c), cal: '—', total: '—' };
+      const c = Math.round(e.tc / 60);                 // minutos de la conversión general al marcar Conversión
+      const conv = c + Math.round((e.po || 0) / 60);   // + lo que el equipo inició antes (inicio previo)
+      if (e.na) return { conv: textoDuracionHM(conv), cal: 'N/A', total: textoDuracionHM(conv) };
+      if (!(e.calidad && Number.isFinite(e.tq))) return { conv: textoDuracionHM(conv), cal: '—', total: '—' };
       const q = Math.round(e.tq / 60);
       const lib = Math.max(0, q - c);
-      return { conv: textoDuracionHM(c), cal: textoDuracionHM(lib), total: textoDuracionHM(c + lib) };
+      return { conv: textoDuracionHM(conv), cal: textoDuracionHM(lib), total: textoDuracionHM(conv + lib) };
     }
 
     // % global al finalizar: el guardado en el registro o, en registros anteriores, el calculado con el detalle
@@ -2767,11 +2829,12 @@
           const filas = areas.map(area => {
             const lista = equipos.filter(e => e.area === area);
             const pct = e => e.na ? (e.conversion ? 100 : 0) : (e.conversion ? 50 : 0) + (e.calidad ? 50 : 0);
-            return `<tr class="bg-slate-200 font-bold"><td colspan="7" class="${td} text-xs uppercase tracking-wide">${esc(area)}</td></tr>` +
+            return `<tr class="bg-slate-200 font-bold"><td colspan="8" class="${td} text-xs uppercase tracking-wide">${esc(area)}</td></tr>` +
               lista.map(e => {
                 const t = tiemposEquipo(e);
                 return `<tr>
                 <td class="${td} pl-5">${esc(e.equipo)}</td>
+                <td class="${td} text-center font-mono whitespace-nowrap">${e.ps ? esc(e.ps) : 'N/A'}</td>
                 <td class="${td} text-center font-bold">${marca(e.conversion)}</td>
                 <td class="${td} text-center font-mono whitespace-nowrap">${t.conv}</td>
                 <td class="${td} text-center font-bold">${e.na ? 'N/A' : marca(e.calidad)}</td>
@@ -2782,7 +2845,7 @@
               }).join('');
           }).join('');
           checklist = `<table class="w-full text-xs border-collapse">
-              <thead><tr><th class="${th}">Equipo / Estación</th><th class="${th} text-center">Conversión</th><th class="${th} text-center">Tiempo de conversión</th><th class="${th} text-center">Liberado por calidad</th><th class="${th} text-center">Tiempo de liberación</th><th class="${th} text-center">Tiempo total</th><th class="${th} text-center">Estatus</th></tr></thead>
+              <thead><tr><th class="${th}">Equipo / Estación</th><th class="${th} text-center">Inicio previo</th><th class="${th} text-center">Conversión</th><th class="${th} text-center">Tiempo de conversión</th><th class="${th} text-center">Liberado por calidad</th><th class="${th} text-center">Tiempo de liberación</th><th class="${th} text-center">Tiempo total</th><th class="${th} text-center">Estatus</th></tr></thead>
               <tbody>${filas}</tbody></table>`;
         }
       } else {
